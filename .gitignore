@@ -1,0 +1,17 @@
+# FreeCAD artifacts
+*.FCStd
+*.FCStd1
+*.step
+*.stp
+
+# Generated outputs
+logs/
+Mod/UnistrutWB/data/*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Editor
+.vscode/

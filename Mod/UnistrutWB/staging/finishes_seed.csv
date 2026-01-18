@@ -1,0 +1,8 @@
+code,name,standards_csv,source_pages_csv,notes
+EG,Electro-galvanized,ASTM B633 Type III SC1,,
+HG,Hot-dipped galvanized,ASTM A123;ASTM A153,,
+GR,Green Powder Coat,Commercial powder coating standards,,
+PG,Pre-galvanized,ASTM A653 G90,,
+PL,Plain,,,
+DF,Unistrut Defender,ASTM A1046;ASTM A1059,,
+ZD,Perma-Gold,ASTM B633 Type II SC3,,

@@ -1,0 +1,2 @@
+id,name,category,thickness_in,hole_diam_in,hole_pattern,source_pages_csv,notes
+GEN_ANGLE_90,Generic 90° Angle Plate (placeholder),angle,0.25,0.5625,1-7/8 pitch,,Placeholder record for acceptance tests.

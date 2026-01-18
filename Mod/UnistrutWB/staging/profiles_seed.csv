@@ -1,0 +1,3 @@
+id,family,gauge,width_in,height_in,thickness_in,finishes_csv,std_lengths_ft_csv,source_pages_csv,notes
+P1000,1-5/8 x 1-5/8,12,1.625,1.625,0.105,"EG,HG,GR,PL,PG,DF,ZD","10,20",,Seed row; fill from catalog table.
+P4100,1-5/8 x 13/16,14,1.625,0.8125,0.075,"EG,HG,GR,PL,PG,DF,ZD","10,20",,Seed row; fill from catalog table.
