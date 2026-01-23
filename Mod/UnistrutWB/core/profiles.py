@@ -98,21 +98,3 @@ def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simpl
 
     return solid
 
-
-def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simple") -> Part.Shape:
-    w = float(profile["geometry"]["width"]["mm"])
-    h = float(profile["geometry"]["height"]["mm"])
-    t = float(profile["geometry"]["thickness"]["mm"])
-
-    # crude U-channel: outer rect minus inner rect
-    outer = _rect_profile(w, h)
-    inner = _rect_profile(max(w - 2*t, 0.1), max(h - t, 0.1))
-    inner.translate(App.Vector(t, t, 0))
-    face = outer.cut(inner)
-
-    solid = face.extrude(App.Vector(length_mm, 0, 0))
-
-    if mode == "detailed":
-        ...
-    return solid
-
