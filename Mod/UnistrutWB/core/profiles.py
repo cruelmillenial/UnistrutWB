@@ -84,17 +84,39 @@ def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simpl
     solid = face.extrude(App.Vector(length_mm, 0, 0))
 
     if mode == "detailed":
-        # crude in-turned lips: add small ridges at top edges
-        lip_w = min(6.0, w * 0.2)
-        lip_t = min(2.0, t)
+    # crude in-turned lips: ridges that run along X (length)
+        lip_w = min(6.0, w * 0.2)   # mm along Y
+        lip_t = min(2.0, t)        # mm along Z
 
-        left = Part.makeBox(lip_w, lip_t, length_mm)
-        left.Placement = App.Placement(App.Vector(0, h - lip_t, 0), App.Rotation())
+    # Left ridge
+        left = Part.makeBox(length_mm, lip_w, lip_t)
+        left.Placement = App.Placement(
+        App.Vector(0, 0, h - lip_t),
+        App.Rotation()
+    )
 
-        right = Part.makeBox(lip_w, lip_t, length_mm)
-        right.Placement = App.Placement(App.Vector(w - lip_w, h - lip_t, 0), App.Rotation())
+    # Right ridge
+        right = Part.makeBox(length_mm, lip_w, lip_t)
+        right.Placement = App.Placement(
+            App.Vector(0, w - lip_w, h - lip_t),
+            App.Rotation()
+    )
 
         solid = solid.fuse(left).fuse(right)
-
     return solid
+
+def build_u_channel_lipped(
+    width_mm: float,
+    depth_mm: float,
+    t_mm: float,
+    lip_mm: float,
+    length_mm: float,
+) -> Part.Shape:
+    # TODO: implement real lipped channel geometry (catalog-faithful)
+    outer = _rect_profile_yz(width_mm, depth_mm)
+    inner = _rect_profile_yz(max(width_mm - 2*t_mm, 0.1), max(depth_mm - t_mm, 0.1))
+    inner.translate(App.Vector(0, t_mm, t_mm))
+    face = outer.cut(inner)
+    return face.extrude(App.Vector(length_mm, 0, 0))
+
 
