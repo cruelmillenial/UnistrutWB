@@ -112,11 +112,53 @@ def build_u_channel_lipped(
     lip_mm: float,
     length_mm: float,
 ) -> Part.Shape:
-    # TODO: implement real lipped channel geometry (catalog-faithful)
-    outer = _rect_profile_yz(width_mm, depth_mm)
-    inner = _rect_profile_yz(max(width_mm - 2*t_mm, 0.1), max(depth_mm - t_mm, 0.1))
-    inner.translate(App.Vector(0, t_mm, t_mm))
+    """
+    Lipped U-channel (MVP): base U-channel + two inward lip returns.
+    Cross-section in YZ at X=0; extrusion along +X.
+
+    width_mm: outside width (Y)
+    depth_mm: outside depth/height (Z)
+    t_mm: wall thickness
+    lip_mm: inward return length from each top edge (Y direction)
+    """
+    w = float(width_mm)
+    h = float(depth_mm)
+    t = max(float(t_mm), 0.1)
+    lip = max(float(lip_mm), 0.0)
+    L = float(length_mm)
+
+    # Clamp lip so it can't collide in the middle
+    max_lip = max((w - 2 * t) / 2.0 - 0.1, 0.0)
+    lip = min(lip, max_lip)
+
+    # --- Base channel: outer minus inner cavity (open top)
+    outer = _rect_profile_yz(w, h)
+    inner = _rect_profile_yz(max(w - 2 * t, 0.1), max(h - t, 0.1))
+    inner.translate(App.Vector(0, t, t))
     face = outer.cut(inner)
-    return face.extrude(App.Vector(length_mm, 0, 0))
+    solid = face.extrude(App.Vector(L, 0, 0))
+
+    if lip <= 0:
+        return solid
+
+    # --- Lip returns: two rectangular shelves at the top, running along X
+    # They sit at the inner top edge (just below h), thickness t in Z.
+    # Left lip spans Y: [t, t+lip]
+    left = Part.makeBox(L, lip, t)
+    left.Placement = App.Placement(
+        App.Vector(0, t, h - t),
+        App.Rotation()
+    )
+
+    # Right lip spans Y: [w - t - lip, w - t]
+    right = Part.makeBox(L, lip, t)
+    right.Placement = App.Placement(
+        App.Vector(0, w - t - lip, h - t),
+        App.Rotation()
+    )
+
+    return solid.fuse(left).fuse(right)
+
+ 
 
 
