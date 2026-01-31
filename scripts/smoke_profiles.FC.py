@@ -15,12 +15,14 @@ p_lipped = {
         "profile_spec": {
             "kind": "u_channel_lipped",
             "t": {"mm": 1.905},
-            "lip_return": {"mm": 6.0},
+            "lip_return": {"mm": 9.525},
+            "inside_radius": {"mm": 1.524},  # ignored for now
         },
     }
 }
-
 u = profiles.build_channel(p_lipped, 1000.0, mode="simple")
+spec = p_lipped["geometry"]["profile_spec"]
+print("lip_return_mm:", spec["lip_return"]["mm"])
 print("lipped BB:", u.BoundBox.XLength, u.BoundBox.YLength, u.BoundBox.ZLength)
 print("lipped V:", u.Volume)
 print("simple BB:", s.BoundBox.XLength, s.BoundBox.YLength, s.BoundBox.ZLength)
