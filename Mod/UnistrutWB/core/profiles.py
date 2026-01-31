@@ -84,26 +84,26 @@ def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simpl
     solid = face.extrude(App.Vector(length_mm, 0, 0))
 
     if mode == "detailed":
-    # crude in-turned lips: ridges that run along X (length)
-        lip_w = min(6.0, w * 0.2)   # mm along Y
-        lip_t = min(2.0, t)        # mm along Z
+        # crude in-turned lips: ridges that run along X (length)
+        lip_w = min(6.0, w * 0.2)
+        lip_t = min(2.0, t)
 
-    # Left ridge
         left = Part.makeBox(length_mm, lip_w, lip_t)
         left.Placement = App.Placement(
-        App.Vector(0, 0, h - lip_t),
-        App.Rotation()
-    )
+            App.Vector(0, 0, h - lip_t),
+            App.Rotation()
+        )
 
-    # Right ridge
         right = Part.makeBox(length_mm, lip_w, lip_t)
         right.Placement = App.Placement(
             App.Vector(0, w - lip_w, h - lip_t),
             App.Rotation()
-    )
+        )
 
         solid = solid.fuse(left).fuse(right)
+
     return solid
+
 
 def build_u_channel_lipped(
     width_mm: float,
