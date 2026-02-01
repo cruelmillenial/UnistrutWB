@@ -36,7 +36,7 @@ def aggregate(doc=None) -> list[Dict[str, Any]]:
                 key = ("profile",) + _key_profile(obj)
                 counts[key] = counts.get(key, 0) + 1
             elif obj.UnistrutType == "fitting":
-                fid = getattr(obj, "FittingId", "")
+                fid = getattr(obj, "FittingId", "") or getattr(obj, "Label", "") or obj.Name
                 key = ("fitting", fid)
                 counts[key] = counts.get(key, 0) + 1
 
@@ -46,7 +46,7 @@ def aggregate(doc=None) -> list[Dict[str, Any]]:
             rows.append({"type":"profile","id":pid,"finish":finish,"length_mm":length_mm,"qty":qty})
         else:
             _, fid = k
-            rows.append({"type":"fitting","id":fid,"finish":"","length_mm":"","qty":qty})
+            rows.sort(key=lambda r: (r["type"], r["id"], str(r["finish"]), str(r["length_mm"])))
 
     return rows
 
