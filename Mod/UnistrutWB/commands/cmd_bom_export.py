@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import FreeCADGui as Gui
-from ..core.bom import export_csv
+from ..core import bom
 
 try:
     from PySide2 import QtWidgets
@@ -15,7 +15,7 @@ class _CmdBOMExport:
         path, _ = QtWidgets.QFileDialog.getSaveFileName(None, "Save BOM CSV", "unistrut_bom.csv", "CSV (*.csv)")
         if not path:
             return
-        export_csv(path)
+        bom.export_csv(path)
         QtWidgets.QMessageBox.information(None, "Unistrut BOM Export", f"Saved:\n{path}")
 
 Gui.addCommand("Unistrut_BOMExport", _CmdBOMExport())
