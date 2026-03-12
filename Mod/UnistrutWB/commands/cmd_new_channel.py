@@ -3,7 +3,7 @@ import FreeCAD as App
 import FreeCADGui as Gui
 
 from ..core.loader import Catalog
-from ..core.profiles import build_channel
+from ..core.profiles import build_channel, _compute_slot_centers_web
 
 try:
     from PySide2 import QtWidgets
@@ -45,7 +45,7 @@ class _CmdNewChannel:
         def ok():
             pid = combo.currentText()
             prof = cat.get_profile(pid)
-            shp = build_channel(prof, float(length.value()), mode.currentText())
+            shp = build_channel(prof, float(length.value()), mode.currentText().lower())
 
             doc = App.ActiveDocument or App.newDocument("UnistrutWB")
             obj = doc.addObject("Part::Feature", f"U_{pid}")
@@ -56,6 +56,29 @@ class _CmdNewChannel:
             obj.addProperty("App::PropertyLength", "Length", "Unistrut").Length = float(length.value())
             obj.addProperty("App::PropertyString", "Finish", "Unistrut").Finish = finish.text().strip() or "EG"
             obj.addProperty("App::PropertyString", "Mode", "Unistrut").Mode = mode.currentText()
+            
+            if "SlotCenters" not in obj.PropertiesList:
+                obj.addProperty(
+                "App::PropertyVectorList",
+                "SlotCenters",
+                "Unistrut",
+                "Computed slot center points"
+            )
+
+            geom = prof.get("geometry") or {}
+            piercing = geom.get("piercing") or {}
+            series = piercing.get("series")
+
+            centers = []
+            if series:
+                centers = _compute_slot_centers_web(
+                    length_mm=float(length.value()),
+                    width_mm=float(geom["width"]["mm"]),
+                    thickness_mm=float(geom["thickness"]["mm"]),
+                    series_code=str(series),
+    )
+
+            obj.SlotCenters = centers
 
             doc.recompute()
             dlg.accept()

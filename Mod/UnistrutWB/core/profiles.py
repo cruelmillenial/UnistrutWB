@@ -103,6 +103,83 @@ def _apply_slot_pattern_web(
     cut_depth = pat.get("cut_depth_mm", "THICKNESS")
     dz = float(cut_depth) if isinstance(cut_depth, (int, float)) else t
 
+    # Slight pad so cutters reliably intersect faces
+    eps = 0.05  # mm
+
+    def make_slot_at(x_center: float) -> Part.Shape:
+        slot = Part.makeBox(slot_len, slot_w, dz + 2 * eps)
+        slot.Placement = App.Placement(
+            App.Vector(x_center - slot_len / 2.0, y0 - slot_w / 2.0, z0 - eps),
+            App.Rotation()
+        )
+        return slot
+
+    centers = []
+    x = end_margin
+    while x <= (L - end_margin + 1e-6):
+        centers.append(x)
+        x += pitch
+
+    if not centers:
+        return solid
+
+    cutters = [make_slot_at(xc) for xc in centers]
+    compound = Part.makeCompound(cutters)
+
+    return solid.cut(compound)
+
+def _compute_slot_centers_web(
+    *,
+    length_mm: float,
+    width_mm: float,
+    thickness_mm: float,
+    series_code: str,
+) -> list[App.Vector]:
+    m = _load_hole_series_map()
+    hs = (m.get("hole_series") or {}).get(series_code) or {}
+    pat = hs.get("slot_pattern")
+    if not pat:
+        return []
+
+    L = float(length_mm)
+    w = float(width_mm)
+    t = float(thickness_mm)
+
+    pitch = float(pat["pitch_mm"])
+    end_margin = float(pat.get("end_margin_mm", pitch / 2.0))
+    slot_len = float(pat["slot_length_mm"])
+    slot_w = float(pat["slot_width_mm"])
+
+    y_center = pat.get("y_center_mm", "CENTER")
+    y0 = float(y_center) if isinstance(y_center, (int, float)) else (w / 2.0)
+
+    z0 = float(pat.get("z_from_outer_bottom_mm", 0.0))
+
+    centers: list[App.Vector] = []
+    x = end_margin
+    while x <= (L - end_margin + 1e-6):
+        centers.append(App.Vector(x, y0, z0))
+        x += pitch
+
+    return centers
+
+    L = float(length_mm)
+    w = float(width_mm)
+    t = float(thickness_mm)
+
+    pitch = float(pat["pitch_mm"])
+    end_margin = float(pat.get("end_margin_mm", pitch / 2.0))
+    slot_len = float(pat["slot_length_mm"])
+    slot_w = float(pat["slot_width_mm"])
+
+    y_center = pat.get("y_center_mm", "CENTER")
+    y0 = float(y_center) if isinstance(y_center, (int, float)) else (w / 2.0)
+
+    z0 = float(pat.get("z_from_outer_bottom_mm", 0.0))
+
+    cut_depth = pat.get("cut_depth_mm", "THICKNESS")
+    dz = float(cut_depth) if isinstance(cut_depth, (int, float)) else t
+
     # Slight pad so cutters reliably intersect faces (OCC tolerance hygiene)
     eps = 0.05  # mm
 
@@ -170,15 +247,15 @@ def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simpl
     # -------------------------------------------------
     # FALLBACK: existing crude U-channel logic
     # -------------------------------------------------
-
     outer = _rect_profile_yz(w, h)
-    inner = _rect_profile_yz(max(w - 2*t, 0.1), max(h - t, 0.1))
+    inner = _rect_profile_yz(max(w - 2 * t, 0.1), max(h - t, 0.1))
     inner.translate(App.Vector(0, t, t))
     face = outer.cut(inner)
 
     solid = face.extrude(App.Vector(length_mm, 0, 0))
 
     if mode == "detailed":
+        # crude in-turned lips: ridges that run along X (length)
         lip_w = min(6.0, w * 0.2)
         lip_t = min(2.0, t)
 

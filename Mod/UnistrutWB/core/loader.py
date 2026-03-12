@@ -6,8 +6,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import os
 import FreeCAD as App
 
+DEBUG_LOADER = False
 
 def _data_dir() -> Path:
     # Workbench data folder (inside the repo)
@@ -53,6 +55,16 @@ def load_datastore() -> Dict[str, Any]:
     # Split files path (preferred)
     # ---------------------------
     if profiles_p.exists() or fittings_p.exists() or finishes_p.exists():
+        if DEBUG_LOADER:
+            App.Console.PrintMessage(
+                "[UnistrutWB] Split data path active "
+                f"(profiles={profiles_p.exists()}, fittings={fittings_p.exists()}, finishes={finishes_p.exists()})\n"
+            )
+            print(
+            "[UnistrutWB] Split data path active "
+            f"(profiles={profiles_p.exists()}, fittings={fittings_p.exists()}, finishes={finishes_p.exists()})"
+        )
+        print(f"[UnistrutWB] data dir: {d}")
 
         # PROFILES
         if profiles_p.exists():
