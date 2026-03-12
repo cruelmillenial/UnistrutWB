@@ -206,6 +206,12 @@ def _compute_slot_centers_web(
     # One boolean cut (fast + stable)
     return solid.cut(compound)
 
+def nearest_slot_center(slot_centers, point: App.Vector):
+    if not slot_centers:
+        return None
+    if point is None:
+        return None
+    return min(slot_centers, key=lambda v: (v.sub(point)).Length)
 
 def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simple") -> Part.Shape:
     geom = profile["geometry"]
