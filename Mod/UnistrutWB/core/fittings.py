@@ -1,27 +1,61 @@
 """
-Fitting placement + placeholder geometry.
+Fitting geometry + mate metadata.
 
-For v0.1 we implement a simple "plate" placeholder, plus mate frames encoded as datum
-features (visual markers). Later replace with true catalog-derived solids.
+MVP approach:
+- simple parametric solids
+- metadata for future snapping/placement
+- not catalog-perfect geometry yet
 """
 from __future__ import annotations
-from typing import Dict, Any, Tuple
+from typing import Dict, Any
 
 import FreeCAD as App
 import Part
 
+
 def build_fitting_shape(fitting: Dict[str, Any]) -> Part.Shape:
-    # Placeholder: L-plate-ish box
-    t = float(fitting["thickness"]["mm"])
-    # fixed envelope for visibility
-    a = 50.0
-    b = 50.0
-    plate = Part.makeBox(a, b, t)
-    return plate
+    typ = fitting.get("type", "")
+
+    if typ == "splice_plate":
+        return _build_splice_plate(fitting)
+
+    if typ == "angle_plate":
+        return _build_angle_plate(fitting)
+
+    raise ValueError(f"Unknown fitting type: {typ}")
+
+
+def _build_splice_plate(fitting: Dict[str, Any]) -> Part.Shape:
+    w = float(fitting["width_mm"])
+    h = float(fitting["height_mm"])
+    t = float(fitting["thickness_mm"])
+
+    # Plate in XY, thickness in +Z
+    face = Part.makePlane(w, h)
+    return face.extrude(App.Vector(0, 0, t))
+
+
+def _build_angle_plate(fitting: Dict[str, Any]) -> Part.Shape:
+    w = float(fitting["width_mm"])
+    h = float(fitting["height_mm"])
+    t = float(fitting["thickness_mm"])
+
+    # Very simple L bracket: two plates fused at right angle
+    leg_a = Part.makeBox(w, t, h)
+    leg_b = Part.makeBox(t, w, h)
+
+    return leg_a.fuse(leg_b)
+
 
 def add_mate_markers(obj, fitting: Dict[str, Any]) -> None:
-    # Visual only: store mate frame names in properties
-    if not obj.PropertiesList:
-        return
     frames = fitting.get("mate_frames", [])
-    obj.addProperty("App::PropertyStringList", "MateFrames", "Unistrut").MateFrames = [f.get("id","") for f in frames]
+
+    if "MateFrames" not in obj.PropertiesList:
+        obj.addProperty(
+            "App::PropertyStringList",
+            "MateFrames",
+            "Unistrut",
+            "Available mate frame identifiers"
+        )
+
+    obj.MateFrames = [f.get("id", "") for f in frames]
