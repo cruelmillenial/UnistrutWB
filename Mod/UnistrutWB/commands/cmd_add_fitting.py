@@ -5,6 +5,7 @@ import Part
 
 from ..core.loader import Catalog
 from ..core.fittings import build_fitting_shape, add_mate_markers
+from ..core.profiles import nearest_slot_center
 
 try:
     from PySide2 import QtWidgets
@@ -73,6 +74,33 @@ class _CmdAddFitting:
             obj.addProperty("App::PropertyString", "UnistrutType", "Unistrut").UnistrutType = "fitting"
             obj.addProperty("App::PropertyString", "FittingId", "Unistrut").FittingId = fid
             add_mate_markers(obj, fitting)
+
+            channel = None
+
+            sel_ex = Gui.Selection.getSelectionEx()
+            for s in sel_ex:
+                obj_sel = s.Object
+                if getattr(obj_sel, "UnistrutType", "") == "profile":
+                    channel = obj_sel
+                    break
+
+            if channel is None:
+                sel = Gui.Selection.getSelection()
+                for s in sel:
+                    if getattr(s, "UnistrutType", "") == "profile":
+                        channel = s
+                        break
+
+            if channel and "SlotCenters" in channel.PropertiesList and channel.SlotCenters:
+                guess = channel.Placement.Base
+                slot = nearest_slot_center(channel.SlotCenters, guess) or channel.SlotCenters[0]
+                obj.Placement = App.Placement(slot, App.Rotation())
+            else:
+                obj.Placement = App.Placement(App.Vector(0, 0, 0), App.Rotation())
+
+            if "HostProfile" not in obj.PropertiesList:
+                obj.addProperty("App::PropertyString", "HostProfile", "Unistrut")
+            obj.HostProfile = channel.Name if channel else ""    
 
             doc.recompute()
             dlg.accept()
