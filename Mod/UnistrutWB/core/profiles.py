@@ -13,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, Optional, Dict, Any
 from pathlib import Path
+from .holes import apply_hole_series, resolve_piercing_spec
 
 import FreeCAD as App
 import Part
@@ -240,13 +241,14 @@ def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simpl
         piercing = geom.get("piercing") or {}
         series = piercing.get("series")
         if series:
-            solid = _apply_slot_pattern_web(
+            spec = resolve_piercing_spec(profile)
+            solid = apply_hole_series(
                 solid,
-                length_mm=length_mm,
+                spec,
+                length_mm,
                 width_mm=w,
                 thickness_mm=t_mm,
-                series_code=str(series),
-            )
+        )
 
         return solid
 
@@ -283,13 +285,14 @@ def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simpl
     piercing = geom.get("piercing") or {}
     series = piercing.get("series")
     if series:
-        solid = _apply_slot_pattern_web(
+        spec = resolve_piercing_spec(profile)
+        solid = apply_hole_series(
             solid,
-            length_mm=length_mm,
+            spec,
+            length_mm,
             width_mm=w,
-            thickness_mm=t,
-            series_code=str(series),
-        )
+            thickness_mm=t_mm,
+    )
 
     return solid
 

@@ -76,16 +76,18 @@ def apply_hole_series(
     This cuts slots through the web thickness (+Z), centered across width (Y).
     """
 
-    pitch = float(series["pitch_mm"])
-    offset = float(series.get("offset_mm", pitch / 2.0))
+    pat = series.get("slot_pattern", series)
 
-    # support either slot-style or round-hole-style input
-    slot_len = float(series.get("slot_length_mm", series.get("diameter_mm", 14.0)))
-    slot_w = float(series.get("slot_width_mm", series.get("diameter_mm", 14.0)))
+    pitch = float(pat["pitch_mm"])
+    offset = float(pat.get("offset_mm", pat.get("end_margin_mm", pitch / 2.0)))
 
-    y_center = float(series.get("y_center_mm", width_mm / 2.0))
+    slot_len = float(pat.get("slot_length_mm", pat.get("diameter_mm", 14.0)))
+    slot_w = float(pat.get("slot_width_mm", pat.get("diameter_mm", 14.0)))
+
+    y_center_raw = pat.get("y_center_mm", width_mm / 2.0)
+    y_center = width_mm / 2.0 if y_center_raw == "CENTER" else float(y_center_raw)
+
     eps = 0.05
-
     slots = []
 
     x = offset
