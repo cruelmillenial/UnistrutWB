@@ -3,9 +3,9 @@ import FreeCADGui as Gui
 from ..core.mates import snap_placement
 
 try:
-    from PySide2 import QtWidgets
-except Exception:
     from PySide import QtGui as QtWidgets  # type: ignore
+except Exception:
+    from PySide2 import QtWidgets
 
 class _CmdSnapMate:
     def GetResources(self):

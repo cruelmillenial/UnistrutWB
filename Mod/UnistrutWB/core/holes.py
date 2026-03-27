@@ -113,3 +113,24 @@ def apply_hole_series(
 
     tool = Part.makeCompound(slots)
     return solid.cut(tool)
+
+def compute_slot_centers(series, length_mm, *, width_mm=41.3):
+    """
+    Return list of (x, y, z) slot centers using the same spec as cutting.
+    Z is on the web mid-plane (0), since cutting spans thickness.
+    """
+    pat = series.get("slot_pattern", series)
+
+    pitch = float(pat["pitch_mm"])
+    offset = float(pat.get("offset_mm", pat.get("end_margin_mm", pitch / 2.0)))
+
+    y_center_raw = pat.get("y_center_mm", width_mm / 2.0)
+    y_center = width_mm / 2.0 if y_center_raw == "CENTER" else float(y_center_raw)
+
+    centers = []
+    x = offset
+    while x <= (length_mm - offset + 1e-6):
+        centers.append((x, y_center, 0.0))
+        x += pitch
+
+    return centers

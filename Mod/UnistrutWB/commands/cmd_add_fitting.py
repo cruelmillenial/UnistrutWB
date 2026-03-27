@@ -8,10 +8,10 @@ from ..core.fittings import build_fitting_shape, add_mate_markers
 from ..core.profiles import nearest_slot_center
 
 try:
-    from PySide2 import QtWidgets
-except Exception:
     from PySide import QtGui as QtWidgets  # type: ignore
-
+except Exception:
+    from PySide2 import QtWidgets
+    
 SPLICE_PLATE_4H = {
     "id": "SPLICE_4H",
     "name": "4-Hole Splice Plate",
