@@ -11,7 +11,7 @@ try:
     from PySide import QtGui as QtWidgets  # type: ignore
 except Exception:
     from PySide2 import QtWidgets
-    
+
 SPLICE_PLATE_4H = {
     "id": "SPLICE_4H",
     "name": "4-Hole Splice Plate",
@@ -44,20 +44,6 @@ class _CmdAddFitting:
         combo = QtWidgets.QComboBox()
         combo.addItems(cat.list_fittings())
         layout.addWidget(combo)
-        shape = build_splice_plate(SPLICE_PLATE_4H)
-        obj = doc.addObject("Part::Feature", "SplicePlate")
-        obj.Shape = shape
-    
-        # Minimal metadata for BOM (MVP)
-        obj.addProperty("App::PropertyString", "UnistrutType", "UnistrutWB", "Type tag")
-        obj.UnistrutType = "fitting"
-        obj.addProperty("App::PropertyString", "FittingId", "UnistrutWB", "Fitting ID")
-        obj.FittingId = SPLICE_PLATE_4H["id"]
-
-        # MVP placement: drop near origin or near selection if present
-        obj.Placement = App.Placement(App.Vector(0, 0, 0), App.Rotation())
-        doc.recompute()
-
 
         btns = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         layout.addWidget(btns)
@@ -76,12 +62,16 @@ class _CmdAddFitting:
             add_mate_markers(obj, fitting)
 
             channel = None
+            picked_point = None
 
             sel_ex = Gui.Selection.getSelectionEx()
             for s in sel_ex:
                 obj_sel = s.Object
                 if getattr(obj_sel, "UnistrutType", "") == "profile":
                     channel = obj_sel
+                    if getattr(s, "PickedPoints", None):
+                        if s.PickedPoints:
+                            picked_point = s.PickedPoints[0]
                     break
 
             if channel is None:
@@ -92,14 +82,18 @@ class _CmdAddFitting:
                         break
 
             if channel and "SlotCenters" in channel.PropertiesList and channel.SlotCenters:
-                guess = channel.Placement.Base
-                slot = nearest_slot_center(channel.SlotCenters, guess) or channel.SlotCenters[0]
+                if picked_point is not None:
+                    slot = nearest_slot_center(channel.SlotCenters, picked_point)
+                else:
+                    slot = channel.SlotCenters[0]
+
                 obj.Placement = App.Placement(slot, App.Rotation())
             else:
                 obj.Placement = App.Placement(App.Vector(0, 0, 0), App.Rotation())
 
             if "HostProfile" not in obj.PropertiesList:
                 obj.addProperty("App::PropertyString", "HostProfile", "Unistrut")
+
             obj.HostProfile = channel.Name if channel else ""    
 
             doc.recompute()
