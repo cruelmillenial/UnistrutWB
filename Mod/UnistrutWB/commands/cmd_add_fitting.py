@@ -28,9 +28,94 @@ def build_splice_plate(spec: dict) -> Part.Shape:
     face = Part.makePlane(w, h)
     return face.extrude(App.Vector(0, 0, t))
 
-def fitting_rotation_from_selection(subobj):
+def _safe_norm(v):
+    try:
+        if v.Length == 0:
+            return None
+        out = App.Vector(v.x, v.y, v.z)
+        out.normalize()
+        return out
+    except Exception:
+        return None
+
+
+def _pick_face_normal(face):
+    try:
+        umin, umax, vmin, vmax = face.ParameterRange
+        u = (umin + umax) / 2.0
+        v = (vmin + vmax) / 2.0
+        n = face.normalAt(u, v)
+        return _safe_norm(n)
+    except Exception:
+        return None
+
+
+def _rotation_from_axes(x_dir: App.Vector, y_dir: App.Vector, z_dir: App.Vector):
+    m = App.Matrix()
+    m.A11, m.A21, m.A31 = x_dir.x, x_dir.y, x_dir.z
+    m.A12, m.A22, m.A32 = y_dir.x, y_dir.y, y_dir.z
+    m.A13, m.A23, m.A33 = z_dir.x, z_dir.y, z_dir.z
+    return App.Rotation(m)
+
+
+def fitting_rotation_from_selection(subobj, channel=None):
+    # Canonical channel axis for current generated members
+    channel_x = App.Vector(1, 0, 0)
+
     if subobj is None:
         return App.Rotation()
+
+    # Face selection
+    if isinstance(subobj, Part.Face):
+        z_dir = _pick_face_normal(subobj)
+        if z_dir is None:
+            return App.Rotation()
+
+        # Face-class rule:
+        # - horizontal-ish faces: keep normal as-is
+        # - vertical-ish side faces: flip so mounting is more intuitive
+        if abs(z_dir.z) < 0.5:
+            z_dir = z_dir.negative()
+
+        if abs(z_dir.dot(channel_x)) > 0.999:
+            trial = App.Vector(0, 1, 0)
+        else:
+            trial = channel_x
+
+        y_dir = _safe_norm(z_dir.cross(trial))
+        if y_dir is None:
+            return App.Rotation()
+
+        x_dir = _safe_norm(y_dir.cross(z_dir))
+        if x_dir is None:
+            return App.Rotation()
+
+        return _rotation_from_axes(x_dir, y_dir, z_dir)
+
+    # Edge selection fallback
+    if isinstance(subobj, Part.Edge):
+        try:
+            p0 = subobj.Vertexes[0].Point
+            p1 = subobj.Vertexes[-1].Point
+            edge_dir = _safe_norm(p1.sub(p0))
+            if edge_dir is not None:
+                # Keep fitting Z "up" in current modeling frame
+                z_dir = App.Vector(0, 0, 1)
+                if abs(edge_dir.dot(z_dir)) > 0.999:
+                    z_dir = App.Vector(0, 1, 0)
+
+                y_dir = _safe_norm(z_dir.cross(edge_dir))
+                if y_dir is None:
+                    return App.Rotation()
+                z_dir = _safe_norm(edge_dir.cross(y_dir))
+                if z_dir is None:
+                    return App.Rotation()
+
+                return _rotation_from_axes(edge_dir, y_dir, z_dir)
+        except Exception:
+            return App.Rotation()
+
+    return App.Rotation()
 
     # Face selection: align fitting local +Z to face normal
     if isinstance(subobj, Part.Face):
@@ -122,7 +207,7 @@ class _CmdAddFitting:
                     guess = centers[0]
 
                 slot = nearest_slot_center(centers, guess) or centers[0]
-                rot = fitting_rotation_from_selection(picked_subobj)
+                rot = fitting_rotation_from_selection(picked_subobj, channel)
 
                 print("guess:", guess)
                 print("chosen_slot:", slot)
