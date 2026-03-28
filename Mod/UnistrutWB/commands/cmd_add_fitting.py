@@ -82,6 +82,8 @@ def fitting_rotation_from_selection(subobj, channel=None):
         else:
             trial = channel_x
 
+        print("face_normal:", z_dir)
+        
         y_dir = _safe_norm(z_dir.cross(trial))
         if y_dir is None:
             return App.Rotation()
@@ -115,20 +117,6 @@ def fitting_rotation_from_selection(subobj, channel=None):
         except Exception:
             return App.Rotation()
 
-    return App.Rotation()
-
-    # Face selection: align fitting local +Z to face normal
-    if isinstance(subobj, Part.Face):
-        try:
-            umin, umax, vmin, vmax = subobj.ParameterRange
-            u = (umin + umax) / 2.0
-            v = (vmin + vmax) / 2.0
-            normal = subobj.normalAt(u, v)
-            return App.Rotation(App.Vector(0, 0, 1), normal)
-        except Exception:
-            return App.Rotation()
-
-    # Edge selection: later
     return App.Rotation()
 
 class _CmdAddFitting:
