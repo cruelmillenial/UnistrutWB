@@ -71,19 +71,30 @@ def fitting_rotation_from_selection(subobj, channel=None):
         if z_dir is None:
             return App.Rotation()
 
-        # Face-class rule:
-        # - horizontal-ish faces: keep normal as-is
-        # - vertical-ish side faces: flip so mounting is more intuitive
-        if abs(z_dir.z) < 0.5:
-            z_dir = z_dir.negative()
+        world_y = App.Vector(0, 1, 0)
+        world_z = App.Vector(0, 0, 1)
+
+    # Classify picked face by dominant normal direction.
+        if abs(z_dir.dot(world_y)) > 0.9:
+            face_class = "y_face"
+            #Keep one Y direction, flip the other, so back-face vs slot-side
+            #can behave differently.
+            if z_dir.dot(world_y) > 0:
+                z_dir = z_dir.negative()
+        elif abs(z_dir.dot(world_z)) > 0.9:
+            face_class = "z_face"
+            # Leave top/bottom alone for now.
+        else:
+            face_class = "other"
+
+        print("face_normal:", z_dir)
+        print("face_class:", face_class)
 
         if abs(z_dir.dot(channel_x)) > 0.999:
             trial = App.Vector(0, 1, 0)
         else:
             trial = channel_x
 
-        print("face_normal:", z_dir)
-        
         y_dir = _safe_norm(z_dir.cross(trial))
         if y_dir is None:
             return App.Rotation()
@@ -91,6 +102,10 @@ def fitting_rotation_from_selection(subobj, channel=None):
         x_dir = _safe_norm(y_dir.cross(z_dir))
         if x_dir is None:
             return App.Rotation()
+
+        print("x_dir:", x_dir)
+        print("y_dir:", y_dir)
+        print("z_dir:", z_dir)
 
         return _rotation_from_axes(x_dir, y_dir, z_dir)
 
