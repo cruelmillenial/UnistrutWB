@@ -65,7 +65,7 @@ def fitting_rotation_from_selection(subobj, channel=None):
     if subobj is None:
         return App.Rotation()
 
-    # Face selection
+        # Face selection
     if isinstance(subobj, Part.Face):
         z_dir = _pick_face_normal(subobj)
         if z_dir is None:
@@ -74,11 +74,11 @@ def fitting_rotation_from_selection(subobj, channel=None):
         world_y = App.Vector(0, 1, 0)
         world_z = App.Vector(0, 0, 1)
 
-    # Classify picked face by dominant normal direction.
+        # Classify picked face by dominant normal direction.
         if abs(z_dir.dot(world_y)) > 0.9:
             face_class = "y_face"
-            #Keep one Y direction, flip the other, so back-face vs slot-side
-            #can behave differently.
+            # Keep one Y direction, flip the other, so back-face vs slot-side
+            # can behave differently.
             if z_dir.dot(world_y) > 0:
                 z_dir = z_dir.negative()
         elif abs(z_dir.dot(world_z)) > 0.9:
@@ -87,8 +87,8 @@ def fitting_rotation_from_selection(subobj, channel=None):
         else:
             face_class = "other"
 
-        print("face_normal:", z_dir)
-        print("face_class:", face_class)
+        App.Console.PrintMessage(f"[UnistrutWB] face_normal: {z_dir}\n")
+        App.Console.PrintMessage(f"[UnistrutWB] face_class: {face_class}\n")
 
         if abs(z_dir.dot(channel_x)) > 0.999:
             trial = App.Vector(0, 1, 0)
@@ -103,9 +103,9 @@ def fitting_rotation_from_selection(subobj, channel=None):
         if x_dir is None:
             return App.Rotation()
 
-        print("x_dir:", x_dir)
-        print("y_dir:", y_dir)
-        print("z_dir:", z_dir)
+        App.Console.PrintMessage(f"[UnistrutWB] x_dir: {x_dir}\n")
+        App.Console.PrintMessage(f"[UnistrutWB] y_dir: {y_dir}\n")
+        App.Console.PrintMessage(f"[UnistrutWB] z_dir: {z_dir}\n")
 
         return _rotation_from_axes(x_dir, y_dir, z_dir)
 
@@ -191,13 +191,13 @@ class _CmdAddFitting:
                         channel = s
                         break
 
-            print("channel:", channel.Name if channel else None)
-            print("picked_point:", picked_point)
-            print("picked_subobj:", type(picked_subobj).__name__ if picked_subobj else None)
+            App.Console.PrintMessage(f"[UnistrutWB] channel: {channel.Name if channel else None}\n")
+            App.Console.PrintMessage(f"[UnistrutWB] picked_point: {picked_point}\n")
+            App.Console.PrintMessage(f"[UnistrutWB] picked_subobj: {type(picked_subobj).__name__ if picked_subobj else None}\n")
             
             if channel and "SlotCenters" in channel.PropertiesList and channel.SlotCenters:
                 centers = list(channel.SlotCenters)
-                print("slotcenters_count:", len(centers))
+                App.Console.PrintMessage(f"[UnistrutWB] slotcenters_count: {len(centers)}\n")
 
                 if picked_point is not None:
                     guess = picked_point
@@ -212,8 +212,8 @@ class _CmdAddFitting:
                 slot = nearest_slot_center(centers, guess) or centers[0]
                 rot = fitting_rotation_from_selection(picked_subobj, channel)
 
-                print("guess:", guess)
-                print("chosen_slot:", slot)
+                App.Console.PrintMessage(f"[UnistrutWB] guess: {guess}\n")
+                App.Console.PrintMessage(f"[UnistrutWB] chosen_slot: {slot}\n")
 
                 obj.Placement = App.Placement(slot, rot)
             else:
