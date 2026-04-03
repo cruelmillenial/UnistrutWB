@@ -30,8 +30,8 @@ def _build_splice_plate(fitting: Dict[str, Any]) -> Part.Shape:
     h = float(fitting["height_mm"])
     t = float(fitting["thickness_mm"])
 
-    # Plate in XY, thickness in +Z
-    face = Part.makePlane(w, h)
+    # Center plate on local origin in XY, thickness in +Z
+    face = Part.makePlane(w, h, App.Vector(-w / 2.0, -h / 2.0, 0))
     return face.extrude(App.Vector(0, 0, t))
 
 
@@ -40,12 +40,11 @@ def _build_angle_plate(fitting: Dict[str, Any]) -> Part.Shape:
     h = float(fitting["height_mm"])
     t = float(fitting["thickness_mm"])
 
-    # Very simple L bracket: two plates fused at right angle
-    leg_a = Part.makeBox(w, t, h)
-    leg_b = Part.makeBox(t, w, h)
+    # Simple L bracket, centered about local origin in XY as much as practical
+    leg_a = Part.makeBox(w, t, h, App.Vector(-w / 2.0, -t / 2.0, 0))
+    leg_b = Part.makeBox(t, w, h, App.Vector(-t / 2.0, -w / 2.0, 0))
 
     return leg_a.fuse(leg_b)
-
 
 def add_mate_markers(obj, fitting: Dict[str, Any]) -> None:
     frames = fitting.get("mate_frames", [])
