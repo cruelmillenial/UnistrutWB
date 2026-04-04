@@ -83,7 +83,8 @@ def fitting_rotation_from_selection(subobj, channel=None):
                 z_dir = z_dir.negative()
         elif abs(z_dir.dot(world_z)) > 0.9:
             face_class = "z_face"
-            # Leave top/bottom alone for now.
+            if z_dir.dot(world_z) > 0:
+                z_dir = z_dir.negative()
         else:
             face_class = "other"
 
