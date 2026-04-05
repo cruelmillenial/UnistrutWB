@@ -74,17 +74,18 @@ def fitting_rotation_from_selection(subobj, channel=None):
         world_y = App.Vector(0, 1, 0)
         world_z = App.Vector(0, 0, 1)
 
-        # Classify picked face by dominant normal direction.
-        if abs(z_dir.dot(world_y)) > 0.9:
-            face_class = "y_face"
-            # Keep one Y direction, flip the other, so back-face vs slot-side
-            # can behave differently.
-            if z_dir.dot(world_y) > 0:
-                z_dir = z_dir.negative()
-        elif abs(z_dir.dot(world_z)) > 0.9:
+        # Broad-face policy: normalize opposing Z faces to one mounting convention.
+        if abs(z_dir.dot(world_z)) > 0.9:
             face_class = "z_face"
             if z_dir.dot(world_z) > 0:
                 z_dir = z_dir.negative()
+
+        # Side-face policy: provisional
+        elif abs(z_dir.dot(world_y)) > 0.9:
+            face_class = "y_face"
+            if z_dir.dot(world_y) > 0:
+                z_dir = z_dir.negative()
+
         else:
             face_class = "other"
 
@@ -162,6 +163,7 @@ class _CmdAddFitting:
 
             doc = App.ActiveDocument or App.newDocument("UnistrutWB")
             obj = doc.addObject("Part::Feature", f"F_{fid}")
+            obj.Label = f"F_{fid}"
             obj.Shape = shp
 
             obj.addProperty("App::PropertyString", "UnistrutType", "Unistrut").UnistrutType = "fitting"
