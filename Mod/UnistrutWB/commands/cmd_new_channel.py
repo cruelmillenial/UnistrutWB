@@ -55,6 +55,7 @@ class _CmdNewChannel:
 
             doc = App.ActiveDocument or App.newDocument("UnistrutWB")
             obj = doc.addObject("Part::Feature", f"U_{pid}")
+            obj.Label = f"U_{pid}"
             obj.Shape = shp
 
             obj.addProperty("App::PropertyString", "UnistrutType", "Unistrut").UnistrutType = "profile"

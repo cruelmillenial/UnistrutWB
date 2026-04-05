@@ -74,7 +74,8 @@ def fitting_rotation_from_selection(subobj, channel=None):
         world_y = App.Vector(0, 1, 0)
         world_z = App.Vector(0, 0, 1)
 
-        # Broad-face policy: normalize opposing Z faces to one mounting convention.
+        # Normalize opposing broad Z faces to one mounting convention so Add Fitting
+        # behaves predictably on either broad side of the channel.
         if abs(z_dir.dot(world_z)) > 0.9:
             face_class = "z_face"
             if z_dir.dot(world_z) > 0:
