@@ -93,18 +93,11 @@ def fitting_rotation_from_selection(subobj, channel=None):
         App.Console.PrintMessage(f"[UnistrutWB] face_normal: {z_dir}\n")
         App.Console.PrintMessage(f"[UnistrutWB] face_class: {face_class}\n")
 
-        if abs(z_dir.dot(channel_x)) > 0.999:
-            trial = App.Vector(0, 1, 0)
-        else:
-            trial = channel_x
-
-        y_dir = _safe_norm(z_dir.cross(trial))
+        if face_class == "y_face":
+            x_dir = App.Vector(1, 0, 0)
+            y_dir = _safe_norm(z_dir.cross(x_dir))
         if y_dir is None:
-            return App.Rotation()
-
-        x_dir = _safe_norm(y_dir.cross(z_dir))
-        if x_dir is None:
-            return App.Rotation()
+                return App.Rotation()
 
         App.Console.PrintMessage(f"[UnistrutWB] x_dir: {x_dir}\n")
         App.Console.PrintMessage(f"[UnistrutWB] y_dir: {y_dir}\n")
