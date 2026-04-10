@@ -136,6 +136,8 @@ class _CmdAddFitting:
 
     def Activated(self):
         cat = Catalog.load()
+        sel_ex_initial = Gui.Selection.getSelectionEx()
+        sel_initial = Gui.Selection.getSelection()
         dlg = QtWidgets.QDialog()
         dlg.setWindowTitle("Unistrut: Add Fitting")
         layout = QtWidgets.QVBoxLayout(dlg)
@@ -168,8 +170,7 @@ class _CmdAddFitting:
             picked_point = None
             picked_subobj = None
 
-            sel_ex = Gui.Selection.getSelectionEx()
-            for s in sel_ex:
+            for s in sel_ex_initial:
                 obj_sel = s.Object
                 if getattr(obj_sel, "UnistrutType", "") == "profile":
                     channel = obj_sel
@@ -181,11 +182,10 @@ class _CmdAddFitting:
                                 picked_subobj = s.SubObjects[0]
                     break
 
-            if channel is None:
-                sel = Gui.Selection.getSelection()
-                for s in sel:
-                    if getattr(s, "UnistrutType", "") == "profile":
-                        channel = s
+                if channel is None:
+                    for s in sel_initial:
+                        if getattr(s, "UnistrutType", "") == "profile":
+                            channel = s
                         break
 
             App.Console.PrintMessage(f"[UnistrutWB] channel: {channel.Name if channel else None}\n")
