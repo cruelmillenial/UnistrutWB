@@ -182,6 +182,11 @@ class _CmdAddFitting:
                                 picked_subobj = s.SubObjects[0]
                     break
 
+                if channel and picked_subobj is None:
+                    App.Console.PrintMessage("[UnistrutWB] Whole-object selection detected; select a face or edge for precise fitting placement.\n"
+                )
+                return
+
                 if channel is None:
                     for s in sel_initial:
                         if getattr(s, "UnistrutType", "") == "profile":
