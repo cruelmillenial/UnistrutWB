@@ -96,8 +96,27 @@ def fitting_rotation_from_selection(subobj, channel=None):
         if face_class == "y_face":
             x_dir = App.Vector(1, 0, 0)
             y_dir = _safe_norm(z_dir.cross(x_dir))
-        if y_dir is None:
+            if y_dir is None:
                 return App.Rotation()
+
+            App.Console.PrintMessage(f"[UnistrutWB] x_dir: {x_dir}\n")
+            App.Console.PrintMessage(f"[UnistrutWB] y_dir: {y_dir}\n")
+            App.Console.PrintMessage(f"[UnistrutWB] z_dir: {z_dir}\n")
+
+            return _rotation_from_axes(x_dir, y_dir, z_dir)
+
+        if abs(z_dir.dot(channel_x)) > 0.999:
+            trial = App.Vector(0, 1, 0)
+        else:
+            trial = channel_x
+
+        y_dir = _safe_norm(z_dir.cross(trial))
+        if y_dir is None:
+            return App.Rotation()
+
+        x_dir = _safe_norm(y_dir.cross(z_dir))
+        if x_dir is None:
+            return App.Rotation()
 
         App.Console.PrintMessage(f"[UnistrutWB] x_dir: {x_dir}\n")
         App.Console.PrintMessage(f"[UnistrutWB] y_dir: {y_dir}\n")
@@ -182,9 +201,9 @@ class _CmdAddFitting:
                                 picked_subobj = s.SubObjects[0]
                     break
 
-                if channel and picked_subobj is None:
+                if channel is not None and picked_subobj is None:
                     App.Console.PrintMessage("[UnistrutWB] Whole-object selection detected; select a face or edge for precise fitting placement.\n"
-                )
+                    )
                 return
 
                 if channel is None:
