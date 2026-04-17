@@ -65,7 +65,7 @@ def fitting_rotation_from_selection(subobj, channel=None):
     if subobj is None:
         return App.Rotation()
 
-        # Face selection
+    # Face selection
     if isinstance(subobj, Part.Face):
         z_dir = _pick_face_normal(subobj)
         if z_dir is None:
@@ -177,13 +177,7 @@ class _CmdAddFitting:
             shp = build_fitting_shape(fitting)
 
             doc = App.ActiveDocument or App.newDocument("UnistrutWB")
-            obj = doc.addObject("Part::Feature", f"F_{fid}")
-            obj.Label = f"F_{fid}"
-            obj.Shape = shp
 
-            obj.addProperty("App::PropertyString", "UnistrutType", "Unistrut").UnistrutType = "fitting"
-            obj.addProperty("App::PropertyString", "FittingId", "Unistrut").FittingId = fid
-            add_mate_markers(obj, fitting)
 
             channel = None
             picked_point = None
@@ -196,21 +190,22 @@ class _CmdAddFitting:
                     if getattr(s, "PickedPoints", None):
                         if s.PickedPoints:
                             picked_point = s.PickedPoints[0]
-                        if getattr(s, "SubObjects", None):
-                            if s.SubObjects:
-                                picked_subobj = s.SubObjects[0]
+                    if getattr(s, "SubObjects", None):
+                        if s.SubObjects:
+                            picked_subobj = s.SubObjects[0]
                     break
 
-                if channel is not None and picked_subobj is None:
-                    App.Console.PrintMessage("[UnistrutWB] Whole-object selection detected; select a face or edge for precise fitting placement.\n"
-                    )
-                return
-
-                if channel is None:
-                    for s in sel_initial:
-                        if getattr(s, "UnistrutType", "") == "profile":
-                            channel = s
+            if channel is None:
+                for s in sel_initial:
+                    if getattr(s, "UnistrutType", "") == "profile":
+                        channel = s
                         break
+
+            if channel is not None and picked_subobj is None:
+                App.Console.PrintMessage(
+                    "[UnistrutWB] Whole-object selection detected; select a face or edge for precise fitting placement.\n"
+                )
+                return
 
             App.Console.PrintMessage(f"[UnistrutWB] channel: {channel.Name if channel else None}\n")
             App.Console.PrintMessage(f"[UnistrutWB] picked_point: {picked_point}\n")
@@ -235,6 +230,14 @@ class _CmdAddFitting:
 
                 App.Console.PrintMessage(f"[UnistrutWB] guess: {guess}\n")
                 App.Console.PrintMessage(f"[UnistrutWB] chosen_slot: {slot}\n")
+
+                obj = doc.addObject("Part::Feature", f"F_{fid}")
+                obj.Label = f"F_{fid}"
+                obj.Shape = shp
+
+                obj.addProperty("App::PropertyString", "UnistrutType", "Unistrut").UnistrutType = "fitting"
+                obj.addProperty("App::PropertyString", "FittingId", "Unistrut").FittingId = fid
+                add_mate_markers(obj, fitting)
 
                 obj.Placement = App.Placement(slot, rot)
             else:
