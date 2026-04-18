@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "id": "P4100",
+      "geometry": {
+        "width": { "mm": 41.3 },
+        "height": { "mm": 20.6375 },
+        "thickness": { "mm": 1.9 },
+        "piercing": { "series": "T", "template": null,
+        "overrides": {} },
+        "profile_spec": {
+          "kind": "u_channel_lipped",
+          "t": { "mm": 1.9 },
+          "lip_return": { "mm": 9.5 }
+        }
+      }
+    }
+  ]
+}

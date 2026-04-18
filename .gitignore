@@ -6,7 +6,6 @@
 
 # Generated outputs
 logs/
-Mod/UnistrutWB/data/*.json
 
 # Python
 __pycache__/

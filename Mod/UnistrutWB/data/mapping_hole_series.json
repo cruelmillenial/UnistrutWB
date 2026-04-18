@@ -1,0 +1,27 @@
+{
+  "schema_version": "0.2.0",
+  "hole_series": {
+    "T": {
+      "kind": "slots",
+      "beam_capacity_factor": 0.85,
+      "slot_pattern": {
+        "pitch_mm": 50.8,
+        "end_margin_mm": 25.4,
+        "slot_length_mm": 28.6,
+        "slot_width_mm": 14.3,
+        "y_center_mm": "CENTER",
+        "z_from_outer_bottom_mm": 0.0,
+        "cut_depth_mm": "THICKNESS"
+      }
+    },
+    "SL": { "kind": "holes_or_slots", "beam_capacity_factor": 0.9 },
+    "HS": { "kind": "slots", "beam_capacity_factor": 0.9 },
+    "KO": { "kind": "knockouts", "beam_capacity_factor": 0.95 }
+  },
+  "provenance": {
+    "source_pages": [],
+    "notes": [
+      "slot_pattern values are MVP placeholders; verify against catalog for each series/profile family."
+    ]
+  }
+}
