@@ -20,6 +20,23 @@ SPLICE_PLATE_4H = {
     "thickness_mm": 4.76,   # ~3/16 in
 }
 
+def classify_face(subobj):
+    if not isinstance(subobj, Part.Face):
+        return None
+
+    n = _pick_face_normal(subobj)
+    if n is None:
+        return None
+
+    world_y = App.Vector(0, 1, 0)
+    world_z = App.Vector(0, 0, 1)
+
+    if abs(n.dot(world_z)) > 0.9:
+        return "z_face"
+    if abs(n.dot(world_y)) > 0.9:
+        return "y_face"
+    return "other"
+
 def build_splice_plate(spec: dict) -> Part.Shape:
     w = float(spec["width_mm"])
     h = float(spec["height_mm"])
@@ -224,6 +241,25 @@ class _CmdAddFitting:
                         guess = centers[0]
                 else:
                     guess = centers[0]
+
+            placement = fitting.get("placement", {})
+            supported_modes = placement.get("supported_modes", [])
+            allowed_face_classes = placement.get("allowed_face_classes", [])
+
+            current_mode = "face_mount" if isinstance(picked_subobj, Part.Face) else None
+            current_face_class = classify_face(picked_subobj) if picked_subobj is not None else None
+
+            if supported_modes and current_mode not in supported_modes:
+                App.Console.PrintMessage(
+                    f"[UnistrutWB] Fitting {fid} does not support placement mode: {current_mode}\n"
+                )
+                return
+
+            if allowed_face_classes and current_face_class not in allowed_face_classes:
+                App.Console.PrintMessage(
+                    f"[UnistrutWB] Fitting {fid} does not support face class: {current_face_class}\n"
+                )
+                return    
 
                 slot = nearest_slot_center(centers, guess) or centers[0]
                 rot = fitting_rotation_from_selection(picked_subobj, channel)
