@@ -1,0 +1,381 @@
+{
+  "meta": {
+    "vendor": "Unistrut",
+    "catalog": {
+      "source_file": "unistrut-general-catalog.pdf",
+      "sha256": "afd2d2d6c9bbf7825848ce137f0a283d553f40431658ae551494f9ed21a84945",
+      "ingested_at": "2026-01-18T04:24:16"
+    },
+    "units": {
+      "internal": "SI",
+      "display_default": "imperial"
+    },
+    "schema_version": "0.1.0"
+  },
+  "profiles": [
+    {
+      "id": "P1000",
+      "family": "1-5/8 x 1-5/8",
+      "gauge": 12,
+      "geometry": {
+        "width": {
+          "in": 1.625,
+          "mm": 41.275
+        },
+        "height": {
+          "in": 1.625,
+          "mm": 41.275
+        },
+        "thickness": {
+          "in": 0.105,
+          "mm": 2.667
+        },
+        "lip": {
+          "in": null,
+          "mm": null
+        },
+        "corner_radius": {
+          "in": null,
+          "mm": null
+        }
+      },
+      "mass": {
+        "lb_per_ft": null,
+        "kg_per_m": null
+      },
+      "finishes": [
+        "EG",
+        "HG",
+        "GR",
+        "PL",
+        "PG",
+        "DF",
+        "ZD"
+      ],
+      "standard_lengths": {
+        "ft": [
+          10.0,
+          20.0
+        ],
+        "m": [
+          3.048,
+          6.096
+        ]
+      },
+      "properties": {
+        "section": {},
+        "material": {}
+      },
+      "provenance": {
+        "source_pages": [],
+        "table": null,
+        "notes": [
+          "Seed row; fill from catalog table."
+        ]
+      }
+    },
+    {
+      "id": "P4100",
+      "family": "1-5/8 x 13/16",
+      "gauge": 14,
+      "geometry": {
+        "width": {
+          "in": 1.625,
+          "mm": 41.275
+        },
+        "height": {
+          "in": 0.8125,
+          "mm": 20.6375
+        },
+        "thickness": {
+          "in": 0.075,
+          "mm": 1.9049999999999998
+        },
+        "lip": {
+          "in": null,
+          "mm": null
+        },
+        "corner_radius": {
+          "in": null,
+          "mm": null
+        },
+        "profile_spec": {
+          "kind": "u_channel_lipped",
+          "t": {
+            "in": 0.075,
+            "mm": 1.9049999999999998
+          },
+          "lip_return": {
+            "in": 0.375,
+            "mm": 9.524999999999999
+          },
+          "inside_radius": {
+            "in": 0.06,
+            "mm": 1.5239999999999998
+          },          
+          "piercing": { "series": "T" }
+
+        }
+      },
+      "mass": {
+        "lb_per_ft": null,
+        "kg_per_m": null
+      },
+      "finishes": [
+        "EG",
+        "HG",
+        "GR",
+        "PL",
+        "PG",
+        "DF",
+        "ZD"
+      ],
+      "standard_lengths": {
+        "ft": [
+          10.0,
+          20.0
+        ],
+        "m": [
+          3.048,
+          6.096
+        ]
+      },
+      "properties": {
+        "section": {},
+        "material": {}
+      },
+      "provenance": {
+        "source_pages": [],
+        "table": null,
+        "notes": [
+          "Seed row; fill from catalog table."
+        ]
+      }
+    }
+  ],
+  "pierced_variants": [],
+  "fittings": [
+    {
+      "id": "GEN_ANGLE_90",
+      "name": "Generic 90\u00b0 Angle Plate (placeholder)",
+      "category": "angle",
+      "thickness": {
+        "in": 0.25,
+        "mm": 6.35
+      },
+      "holes": [
+        {
+          "diameter": {
+            "in": 0.5625,
+            "mm": 14.2875
+          },
+          "pattern": "1-7/8 pitch"
+        }
+      ],
+      "mate_frames": [
+        {
+          "id": "A",
+          "kind": "LCS",
+          "description": "Mount face"
+        },
+        {
+          "id": "B",
+          "kind": "LCS",
+          "description": "Channel face"
+        }
+      ],
+      "provenance": {
+        "source_pages": [],
+        "notes": [
+          "Placeholder record for acceptance tests."
+        ]
+      }
+    }
+  ],
+  "hardware": [
+    {
+      "id": "TORQUE_1_4-20",
+      "kind": "torque_spec",
+      "thread": "1/4-20",
+      "torque": {
+        "ft_lb_rec": 6.0,
+        "N_m_rec": 8.0,
+        "ft_lb_max": 7.0,
+        "N_m_max": 9.0
+      },
+      "provenance": {
+        "source_pages": [],
+        "notes": [
+          "From catalog torque table; verify."
+        ]
+      }
+    },
+    {
+      "id": "TORQUE_5_16-18",
+      "kind": "torque_spec",
+      "thread": "5/16-18",
+      "torque": {
+        "ft_lb_rec": 11.0,
+        "N_m_rec": 15.0,
+        "ft_lb_max": 15.0,
+        "N_m_max": 20.0
+      },
+      "provenance": {
+        "source_pages": [],
+        "notes": [
+          "From catalog torque table; verify."
+        ]
+      }
+    },
+    {
+      "id": "TORQUE_3_8-16",
+      "kind": "torque_spec",
+      "thread": "3/8-16",
+      "torque": {
+        "ft_lb_rec": 19.0,
+        "N_m_rec": 26.0,
+        "ft_lb_max": 25.0,
+        "N_m_max": 34.0
+      },
+      "provenance": {
+        "source_pages": [],
+        "notes": [
+          "From catalog torque table; verify."
+        ]
+      }
+    },
+    {
+      "id": "TORQUE_1_2-13",
+      "kind": "torque_spec",
+      "thread": "1/2-13",
+      "torque": {
+        "ft_lb_rec": 50.0,
+        "N_m_rec": 68.0,
+        "ft_lb_max": 70.0,
+        "N_m_max": 95.0
+      },
+      "provenance": {
+        "source_pages": [],
+        "notes": [
+          "From catalog torque table; verify."
+        ]
+      }
+    },
+    {
+      "id": "TORQUE_5_8-11",
+      "kind": "torque_spec",
+      "thread": "5/8-11",
+      "torque": {
+        "ft_lb_rec": 100.0,
+        "N_m_rec": 136.0,
+        "ft_lb_max": 125.0,
+        "N_m_max": 170.0
+      },
+      "provenance": {
+        "source_pages": [],
+        "notes": [
+          "From catalog torque table; verify."
+        ]
+      }
+    },
+    {
+      "id": "TORQUE_3_4-10",
+      "kind": "torque_spec",
+      "thread": "3/4-10",
+      "torque": {
+        "ft_lb_rec": 125.0,
+        "N_m_rec": 170.0,
+        "ft_lb_max": 135.0,
+        "N_m_max": 183.0
+      },
+      "provenance": {
+        "source_pages": [],
+        "notes": [
+          "From catalog torque table; verify."
+        ]
+      }
+    }
+  ],
+  "finishes": [
+    {
+      "code": "EG",
+      "name": "Electro-galvanized",
+      "standards": [
+        "ASTM B633 Type III SC1"
+      ],
+      "provenance": {
+        "source_pages": [],
+        "notes": []
+      }
+    },
+    {
+      "code": "HG",
+      "name": "Hot-dipped galvanized",
+      "standards": [
+        "ASTM A123",
+        "ASTM A153"
+      ],
+      "provenance": {
+        "source_pages": [],
+        "notes": []
+      }
+    },
+    {
+      "code": "GR",
+      "name": "Green Powder Coat",
+      "standards": [
+        "Commercial powder coating standards"
+      ],
+      "provenance": {
+        "source_pages": [],
+        "notes": []
+      }
+    },
+    {
+      "code": "PG",
+      "name": "Pre-galvanized",
+      "standards": [
+        "ASTM A653 G90"
+      ],
+      "provenance": {
+        "source_pages": [],
+        "notes": []
+      }
+    },
+    {
+      "code": "PL",
+      "name": "Plain",
+      "standards": [
+        "nan"
+      ],
+      "provenance": {
+        "source_pages": [],
+        "notes": []
+      }
+    },
+    {
+      "code": "DF",
+      "name": "Unistrut Defender",
+      "standards": [
+        "ASTM A1046",
+        "ASTM A1059"
+      ],
+      "provenance": {
+        "source_pages": [],
+        "notes": []
+      }
+    },
+    {
+      "code": "ZD",
+      "name": "Perma-Gold",
+      "standards": [
+        "ASTM B633 Type II SC3"
+      ],
+      "provenance": {
+        "source_pages": [],
+        "notes": []
+      }
+    }
+  ],
+  "load_tables": []
+}
