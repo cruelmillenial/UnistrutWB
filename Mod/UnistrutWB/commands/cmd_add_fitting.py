@@ -192,9 +192,7 @@ class _CmdAddFitting:
             fid = combo.currentText()
             fitting = cat.get_fitting(fid)
             shp = build_fitting_shape(fitting)
-
             doc = App.ActiveDocument or App.newDocument("UnistrutWB")
-
 
             channel = None
             picked_point = None
@@ -226,21 +224,28 @@ class _CmdAddFitting:
 
             App.Console.PrintMessage(f"[UnistrutWB] channel: {channel.Name if channel else None}\n")
             App.Console.PrintMessage(f"[UnistrutWB] picked_point: {picked_point}\n")
-            App.Console.PrintMessage(f"[UnistrutWB] picked_subobj: {type(picked_subobj).__name__ if picked_subobj else None}\n")
-            
-            if channel and "SlotCenters" in channel.PropertiesList and channel.SlotCenters:
-                centers = list(channel.SlotCenters)
-                App.Console.PrintMessage(f"[UnistrutWB] slotcenters_count: {len(centers)}\n")
+            App.Console.PrintMessage(
+                f"[UnistrutWB] picked_subobj: {type(picked_subobj).__name__ if picked_subobj else None}\n"
+            )
 
-                if picked_point is not None:
-                    guess = picked_point
-                elif picked_subobj is not None:
-                    try:
-                        guess = picked_subobj.BoundBox.Center
-                    except Exception:
-                        guess = centers[0]
-                else:
+            if not (channel and "SlotCenters" in channel.PropertiesList and channel.SlotCenters):
+                App.Console.PrintMessage(
+                    "[UnistrutWB] No valid host profile / SlotCenters available for fitting placement.\n"
+                )
+                return
+
+            centers = list(channel.SlotCenters)
+            App.Console.PrintMessage(f"[UnistrutWB] slotcenters_count: {len(centers)}\n")
+
+            if picked_point is not None:
+                guess = picked_point
+            elif picked_subobj is not None:
+                try:
+                    guess = picked_subobj.BoundBox.Center
+                except Exception:
                     guess = centers[0]
+            else:
+                guess = centers[0]
 
             placement = fitting.get("placement", {})
             supported_modes = placement.get("supported_modes", [])
@@ -259,30 +264,28 @@ class _CmdAddFitting:
                 App.Console.PrintMessage(
                     f"[UnistrutWB] Fitting {fid} does not support face class: {current_face_class}\n"
                 )
-                return    
+                return
 
-                slot = nearest_slot_center(centers, guess) or centers[0]
-                rot = fitting_rotation_from_selection(picked_subobj, channel)
+            slot = nearest_slot_center(centers, guess) or centers[0]
+            rot = fitting_rotation_from_selection(picked_subobj, channel)
 
-                App.Console.PrintMessage(f"[UnistrutWB] guess: {guess}\n")
-                App.Console.PrintMessage(f"[UnistrutWB] chosen_slot: {slot}\n")
+            App.Console.PrintMessage(f"[UnistrutWB] guess: {guess}\n")
+            App.Console.PrintMessage(f"[UnistrutWB] chosen_slot: {slot}\n")
 
-                obj = doc.addObject("Part::Feature", f"F_{fid}")
-                obj.Label = f"F_{fid}"
-                obj.Shape = shp
+            obj = doc.addObject("Part::Feature", f"F_{fid}")
+            obj.Label = f"F_{fid}"
+            obj.Shape = shp
 
-                obj.addProperty("App::PropertyString", "UnistrutType", "Unistrut").UnistrutType = "fitting"
-                obj.addProperty("App::PropertyString", "FittingId", "Unistrut").FittingId = fid
-                add_mate_markers(obj, fitting)
+            obj.addProperty("App::PropertyString", "UnistrutType", "Unistrut").UnistrutType = "fitting"
+            obj.addProperty("App::PropertyString", "FittingId", "Unistrut").FittingId = fid
+            add_mate_markers(obj, fitting)
 
-                obj.Placement = App.Placement(slot, rot)
-            else:
-                obj.Placement = App.Placement(App.Vector(0, 0, 0), App.Rotation())
+            obj.Placement = App.Placement(slot, rot)
 
             if "HostProfile" not in obj.PropertiesList:
                 obj.addProperty("App::PropertyString", "HostProfile", "Unistrut")
 
-            obj.HostProfile = channel.Name if channel else ""    
+            obj.HostProfile = channel.Name if channel else ""
 
             doc.recompute()
             dlg.accept()
