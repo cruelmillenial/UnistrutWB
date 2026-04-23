@@ -2,14 +2,24 @@
   "schema_version": 1,
   "fittings": [
     {
-      "id": "P1047",
-      "name": "90 Degree Angle Fitting",
-      "type": "angle_plate",
-      "width_mm": 41.3,
-      "height_mm": 41.3,
-      "thickness_mm": 6.0,
-      "hole_count": 2,
-      "mate_frames": [
+  "id": "Pxxxx",
+  "name": "Simple Angle Plate",
+  "family_id": "angle_plate",
+  "type": "angle_plate",
+  "width_mm": 41.3,
+  "height_mm": 41.3,
+  "thickness_mm": 6.0,
+  "placement": {
+    "supported_modes": ["face_mount"],
+    "allowed_face_classes": ["z_face"]
+  },
+  "anchor": {
+    "local_origin": "corner"
+  },
+  "orientation": {
+    "default_policy": "z_face_normalized"
+  },
+  "mate_frames": [
     { "id": "A", "kind": "LCS" },
     { "id": "B", "kind": "LCS" }
   ]
