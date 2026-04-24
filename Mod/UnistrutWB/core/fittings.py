@@ -36,13 +36,13 @@ def _build_splice_plate(fitting: Dict[str, Any]) -> Part.Shape:
 
 
 def _build_angle_plate(fitting: Dict[str, Any]) -> Part.Shape:
-    w = float(fitting["width_mm"])
-    h = float(fitting["height_mm"])
+    a = float(fitting["leg_a_mm"])
+    b = float(fitting["leg_b_mm"])
+    width = float(fitting["width_mm"])
     t = float(fitting["thickness_mm"])
 
-    # Simple L bracket, centered about local origin in XY as much as practical
-    leg_a = Part.makeBox(w, t, h, App.Vector(-w / 2.0, -t / 2.0, 0))
-    leg_b = Part.makeBox(t, w, h, App.Vector(-t / 2.0, -w / 2.0, 0))
+    leg_a = Part.makeBox(a, t, width, App.Vector(0, 0, 0))
+    leg_b = Part.makeBox(t, b, width, App.Vector(0, 0, 0))
 
     return leg_a.fuse(leg_b)
 

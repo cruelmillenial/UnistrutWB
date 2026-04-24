@@ -75,7 +75,7 @@ def _rotation_from_axes(x_dir: App.Vector, y_dir: App.Vector, z_dir: App.Vector)
     return App.Rotation(m)
 
 
-def fitting_rotation_from_selection(subobj, channel=None):
+def fitting_rotation_from_selection(subobj, channel=None, fitting=None):
     # Canonical channel axis for current generated members
     channel_x = App.Vector(1, 0, 0)
 
@@ -120,7 +120,12 @@ def fitting_rotation_from_selection(subobj, channel=None):
             App.Console.PrintMessage(f"[UnistrutWB] y_dir: {y_dir}\n")
             App.Console.PrintMessage(f"[UnistrutWB] z_dir: {z_dir}\n")
 
-            return _rotation_from_axes(x_dir, y_dir, z_dir)
+            rot = _rotation_from_axes(x_dir, y_dir, z_dir)
+
+            if fitting and fitting.get("type") == "angle_plate":
+                rot = rot.multiply(App.Rotation(z_dir, 90))
+
+            return rot
 
         if abs(z_dir.dot(channel_x)) > 0.999:
             trial = App.Vector(0, 1, 0)
@@ -139,7 +144,12 @@ def fitting_rotation_from_selection(subobj, channel=None):
         App.Console.PrintMessage(f"[UnistrutWB] y_dir: {y_dir}\n")
         App.Console.PrintMessage(f"[UnistrutWB] z_dir: {z_dir}\n")
 
-        return _rotation_from_axes(x_dir, y_dir, z_dir)
+        rot = _rotation_from_axes(x_dir, y_dir, z_dir)
+
+        if fitting and fitting.get("type") == "angle_plate":
+            rot = rot.multiply(App.Rotation(z_dir, 90))
+
+        return rot
 
     # Edge selection fallback
     if isinstance(subobj, Part.Edge):
@@ -267,7 +277,7 @@ class _CmdAddFitting:
                 return
 
             slot = nearest_slot_center(centers, guess) or centers[0]
-            rot = fitting_rotation_from_selection(picked_subobj, channel)
+            rot = fitting_rotation_from_selection(picked_subobj, channel, fitting)
 
             App.Console.PrintMessage(f"[UnistrutWB] guess: {guess}\n")
             App.Console.PrintMessage(f"[UnistrutWB] chosen_slot: {slot}\n")

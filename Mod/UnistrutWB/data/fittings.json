@@ -2,12 +2,13 @@
   "schema_version": 1,
   "fittings": [
     {
-  "id": "Pxxxx",
-  "name": "Simple Angle Plate",
+  "id": "DEV_ANGLE_90_2LEG",
+  "name": "Provisional 90 Degree Angle Plate",
   "family_id": "angle_plate",
   "type": "angle_plate",
+  "leg_a_mm": 41.3,
+  "leg_b_mm": 41.3,
   "width_mm": 41.3,
-  "height_mm": 41.3,
   "thickness_mm": 6.0,
   "placement": {
     "supported_modes": ["face_mount"],
