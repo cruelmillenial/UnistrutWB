@@ -55,6 +55,20 @@ def _safe_norm(v):
     except Exception:
         return None
 
+def fitting_anchor_offset(fitting, picked_subobj, rot):
+    if not isinstance(picked_subobj, Part.Face):
+        return App.Vector(0, 0, 0)
+
+    normal = _pick_face_normal(picked_subobj)
+    if normal is None:
+        return App.Vector(0, 0, 0)
+
+    t = float(fitting.get("thickness_mm", 0.0))
+
+    # Current fitting geometry is built from local Z=0 to +Z thickness.
+    # For z_face placement, n is the selected face outward normal.
+    # Move origin one thickness along face normal so the visible solid sits outside.
+    return normal.multiply(-t)
 
 def _pick_face_normal(face):
     try:
@@ -73,7 +87,6 @@ def _rotation_from_axes(x_dir: App.Vector, y_dir: App.Vector, z_dir: App.Vector)
     m.A12, m.A22, m.A32 = y_dir.x, y_dir.y, y_dir.z
     m.A13, m.A23, m.A33 = z_dir.x, z_dir.y, z_dir.z
     return App.Rotation(m)
-
 
 def fitting_rotation_from_selection(subobj, channel=None, fitting=None):
     # Canonical channel axis for current generated members
@@ -290,7 +303,8 @@ class _CmdAddFitting:
             obj.addProperty("App::PropertyString", "FittingId", "Unistrut").FittingId = fid
             add_mate_markers(obj, fitting)
 
-            obj.Placement = App.Placement(slot, rot)
+            offset = fitting_anchor_offset(fitting, picked_subobj, rot)
+            obj.Placement = App.Placement(slot.add(offset), rot)
 
             if "HostProfile" not in obj.PropertiesList:
                 obj.addProperty("App::PropertyString", "HostProfile", "Unistrut")
