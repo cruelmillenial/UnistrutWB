@@ -56,19 +56,20 @@ def _safe_norm(v):
         return None
 
 def fitting_anchor_offset(fitting, picked_subobj, rot):
-    if not isinstance(picked_subobj, Part.Face):
-        return App.Vector(0, 0, 0)
-
-    normal = _pick_face_normal(picked_subobj)
-    if normal is None:
-        return App.Vector(0, 0, 0)
+    return App.Vector(0, 0, 0)
 
     t = float(fitting.get("thickness_mm", 0.0))
 
-    # Current fitting geometry is built from local Z=0 to +Z thickness.
-    # For z_face placement, n is the selected face outward normal.
-    # Move origin one thickness along face normal so the visible solid sits outside.
-    return normal.multiply(-t)
+    # Fitting geometry is built from local Z=0 to +Z thickness.
+    # After rotation, local +Z points along this world direction.
+    local_z_world = rot.multVec(App.Vector(0, 0, 1))
+    local_z_world = _safe_norm(local_z_world)
+    if local_z_world is None:
+        return App.Vector(0, 0, 0)
+
+    # Move opposite local +Z by one thickness so the local Z=t side
+    # is brought back onto the selected slot/face plane.
+    return local_z_world.multiply(-t)
 
 def _pick_face_normal(face):
     try:
@@ -274,6 +275,8 @@ class _CmdAddFitting:
             supported_modes = placement.get("supported_modes", [])
             allowed_face_classes = placement.get("allowed_face_classes", [])
 
+            slot_policy = placement.get("slot_policy", "nearest_slot_center")
+
             current_mode = "face_mount" if isinstance(picked_subobj, Part.Face) else None
             current_face_class = classify_face(picked_subobj) if picked_subobj is not None else None
 
@@ -289,7 +292,16 @@ class _CmdAddFitting:
                 )
                 return
 
-            slot = nearest_slot_center(centers, guess) or centers[0]
+            if slot_policy == "nearest_slot_center":
+                slot = nearest_slot_center(centers, guess) or centers[0]
+            elif slot_policy == "picked_point":
+                lot = guess
+            else:
+                App.Console.PrintMessage(
+                    f"[UnistrutWB] Unsupported slot policy for {fid}: {slot_policy}\n"
+                )
+                return
+
             rot = fitting_rotation_from_selection(picked_subobj, channel, fitting)
 
             App.Console.PrintMessage(f"[UnistrutWB] guess: {guess}\n")
@@ -304,7 +316,12 @@ class _CmdAddFitting:
             add_mate_markers(obj, fitting)
 
             offset = fitting_anchor_offset(fitting, picked_subobj, rot)
-            obj.Placement = App.Placement(slot.add(offset), rot)
+            place_base = slot.add(offset)
+
+            App.Console.PrintMessage(f"[UnistrutWB] offset: {offset}\n")
+            App.Console.PrintMessage(f"[UnistrutWB] place_base: {place_base}\n")
+
+            obj.Placement = App.Placement(place_base, rot)
 
             if "HostProfile" not in obj.PropertiesList:
                 obj.addProperty("App::PropertyString", "HostProfile", "Unistrut")

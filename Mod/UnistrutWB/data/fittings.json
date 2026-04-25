@@ -14,6 +14,7 @@
     "supported_modes": ["face_mount"],
     "allowed_face_classes": ["z_face"]
   },
+  "slot_policy": "nearest_slot_center",
   "anchor": {
     "local_origin": "corner"
   },
@@ -39,6 +40,7 @@
     "supported_modes": ["face_mount"],
     "allowed_face_classes": ["z_face"]
   },
+  "slot_policy": "nearest_slot_center",
   "anchor": {
     "local_origin": "center"
   },

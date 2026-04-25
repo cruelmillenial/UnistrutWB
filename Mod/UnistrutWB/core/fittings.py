@@ -30,9 +30,10 @@ def _build_splice_plate(fitting: Dict[str, Any]) -> Part.Shape:
     h = float(fitting["height_mm"])
     t = float(fitting["thickness_mm"])
 
-    # Center plate on local origin in XY, thickness in +Z
+    # Centered in XY.
+    # Thickness extends in local -Z so local Z=0 is the mounting/contact face.
     face = Part.makePlane(w, h, App.Vector(-w / 2.0, -h / 2.0, 0))
-    return face.extrude(App.Vector(0, 0, t))
+    return face.extrude(App.Vector(0, 0, -t))
 
 
 def _build_angle_plate(fitting: Dict[str, Any]) -> Part.Shape:
