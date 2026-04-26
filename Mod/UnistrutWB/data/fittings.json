@@ -14,7 +14,7 @@
     "supported_modes": ["face_mount"],
     "allowed_face_classes": ["z_face"]
   },
-  "slot_policy": "nearest_slot_center",
+  "slot_policy": "nearest_slot_center", 
   "anchor": {
     "local_origin": "corner"
   },
@@ -38,7 +38,7 @@
   "hole_count": 4,
   "placement": {
     "supported_modes": ["face_mount"],
-    "allowed_face_classes": ["z_face"]
+    "allowed_face_classes": ["open_face"]
   },
   "slot_policy": "nearest_slot_center",
   "anchor": {

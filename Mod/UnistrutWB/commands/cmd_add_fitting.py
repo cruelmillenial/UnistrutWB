@@ -12,15 +12,7 @@ try:
 except Exception:
     from PySide2 import QtWidgets
 
-SPLICE_PLATE_4H = {
-    "id": "SPLICE_4H",
-    "name": "4-Hole Splice Plate",
-    "width_mm": 41.275,     # match P4100 width for now
-    "height_mm": 82.55,     # ~3.25 in
-    "thickness_mm": 4.76,   # ~3/16 in
-}
-
-def classify_face(subobj):
+def classify_face(subobj, channel=None):
     if not isinstance(subobj, Part.Face):
         return None
 
@@ -31,19 +23,27 @@ def classify_face(subobj):
     world_y = App.Vector(0, 1, 0)
     world_z = App.Vector(0, 0, 1)
 
+    face_class = "other"
     if abs(n.dot(world_z)) > 0.9:
-        return "z_face"
-    if abs(n.dot(world_y)) > 0.9:
-        return "y_face"
-    return "other"
+        face_class = "z_face"
+    elif abs(n.dot(world_y)) > 0.9:
+        face_class = "y_face"
 
-def build_splice_plate(spec: dict) -> Part.Shape:
-    w = float(spec["width_mm"])
-    h = float(spec["height_mm"])
-    t = float(spec["thickness_mm"])
-    # Plate in XY, thickness in +Z
-    face = Part.makePlane(w, h)
-    return face.extrude(App.Vector(0, 0, t))
+    # Provisional P4100/P-series convention:
+    # SlotCenters currently live on the open/channel-nut side plane at z ~= 0.
+    # Treat the broad z-facing face whose center is near SlotCenters z as open_face.
+    if face_class == "z_face" and channel is not None:
+        try:
+            face_z = subobj.BoundBox.Center.z
+            centers = list(getattr(channel, "SlotCenters", []))
+            if centers:
+                slot_z = centers[0].z
+                if abs(face_z - slot_z) < 0.5:
+                    return "open_face"
+        except Exception:
+            pass
+
+    return face_class
 
 def _safe_norm(v):
     try:
@@ -278,8 +278,9 @@ class _CmdAddFitting:
             slot_policy = placement.get("slot_policy", "nearest_slot_center")
 
             current_mode = "face_mount" if isinstance(picked_subobj, Part.Face) else None
-            current_face_class = classify_face(picked_subobj) if picked_subobj is not None else None
-
+            current_face_class = classify_face(picked_subobj, channel) if picked_subobj is not None else None
+            App.Console.PrintMessage(f"[UnistrutWB] contract_face_class: {current_face_class}\n")
+            
             if supported_modes and current_mode not in supported_modes:
                 App.Console.PrintMessage(
                     f"[UnistrutWB] Fitting {fid} does not support placement mode: {current_mode}\n"
@@ -295,7 +296,7 @@ class _CmdAddFitting:
             if slot_policy == "nearest_slot_center":
                 slot = nearest_slot_center(centers, guess) or centers[0]
             elif slot_policy == "picked_point":
-                lot = guess
+                slot = guess
             else:
                 App.Console.PrintMessage(
                     f"[UnistrutWB] Unsupported slot policy for {fid}: {slot_policy}\n"
