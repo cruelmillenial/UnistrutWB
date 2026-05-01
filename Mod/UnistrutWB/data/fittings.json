@@ -12,7 +12,7 @@
   "thickness_mm": 6.0,
   "placement": {
     "supported_modes": ["face_mount"],
-    "allowed_face_classes": ["z_face"]
+    "allowed_face_classes": ["z_face", "open_face"]
   },
   "slot_policy": "nearest_slot_center", 
   "anchor": {

@@ -293,15 +293,26 @@ class _CmdAddFitting:
                 )
                 return
 
+            App.Console.PrintMessage(f"[UnistrutWB] slot_policy: {slot_policy}\n")
+
             if slot_policy == "nearest_slot_center":
-                slot = nearest_slot_center(centers, guess) or centers[0]
+                if current_face_class == "open_face":
+                    slot = nearest_slot_center(centers, guess) or centers[0]
+                else:
+                    #SlotCenters live on the open/channel-nut side.
+                    # For non-open faces, honor the picked point instead.
+                    slot = guess
+
             elif slot_policy == "picked_point":
                 slot = guess
+
             else:
                 App.Console.PrintMessage(
                     f"[UnistrutWB] Unsupported slot policy for {fid}: {slot_policy}\n"
                 )
                 return
+
+rot = fitting_rotation_from_selection(picked_subobj, channel, fitting)
 
             rot = fitting_rotation_from_selection(picked_subobj, channel, fitting)
 
