@@ -30,17 +30,18 @@ def classify_face(subobj, channel=None):
         face_class = "y_face"
 
     # Provisional P4100/P-series convention:
-    # SlotCenters currently live on the open/channel-nut side plane at z ~= 0.
-    # Treat the broad z-facing face whose center is near SlotCenters z as open_face.
-        if face_class == "z_face" and channel is not None:
-            try:
-                face_z = subobj.BoundBox.Center.z
-                channel_zmin = channel.Shape.BoundBox.ZMin
+    # open/channel-nut side is the low-Z side of the generated channel.
+    # Include the sheet-thickness/lip faces near the opening.
+    if face_class == "z_face" and channel is not None:
+        try:
+            face_z = subobj.BoundBox.Center.z
+            channel_zmin = channel.Shape.BoundBox.ZMin
 
-            # Provisional P4100/P-series convention:
-            # open/channel-nut side is the low-Z side of the generated channel.
-            # Include the sheet-thickness/lip faces near the opening.
-            if abs(face_z - channel_zmin) < 2.5:
+            App.Console.PrintMessage(
+                f"[UnistrutWB] face_z: {face_z}, channel_zmin: {channel_zmin}\n"
+            )
+
+            if abs(face_z - channel_zmin) < 0.5:
                 return "open_face"
         except Exception:
             pass
