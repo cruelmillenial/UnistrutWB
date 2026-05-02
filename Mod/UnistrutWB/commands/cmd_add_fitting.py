@@ -79,7 +79,7 @@ def _rotation_from_axes(x_dir: App.Vector, y_dir: App.Vector, z_dir: App.Vector)
     m.A13, m.A23, m.A33 = z_dir.x, z_dir.y, z_dir.z
     return App.Rotation(m)
 
-def fitting_rotation_from_selection(subobj, channel=None, fitting=None):
+def fitting_rotation_from_selection(subobj, channel=None, fitting=None, face_class=None):
     # Canonical channel axis for current generated members
     channel_x = App.Vector(1, 0, 0)
 
@@ -112,7 +112,7 @@ def fitting_rotation_from_selection(subobj, channel=None, fitting=None):
             face_class = "other"
 
         App.Console.PrintMessage(f"[UnistrutWB] face_normal: {z_dir}\n")
-        App.Console.PrintMessage(f"[UnistrutWB] face_class: {face_class}\n")
+        App.Console.PrintMessage(f"[UnistrutWB] rotation_face_class: {face_class}\n")
 
         if face_class == "y_face":
             x_dir = App.Vector(1, 0, 0)
@@ -302,7 +302,12 @@ class _CmdAddFitting:
                 )
                 return
 
-            rot = fitting_rotation_from_selection(picked_subobj, channel, fitting)
+                rot = fitting_rotation_from_selection(
+                picked_subobj,
+                channel,
+                fitting,
+                current_face_class,
+                )
 
             App.Console.PrintMessage(f"[UnistrutWB] guess: {guess}\n")
             App.Console.PrintMessage(f"[UnistrutWB] chosen_slot: {slot}\n")
