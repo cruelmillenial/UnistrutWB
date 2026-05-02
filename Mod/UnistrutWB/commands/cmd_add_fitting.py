@@ -61,19 +61,6 @@ def _safe_norm(v):
 def fitting_anchor_offset(fitting, picked_subobj, rot):
     return App.Vector(0, 0, 0)
 
-    t = float(fitting.get("thickness_mm", 0.0))
-
-    # Fitting geometry is built from local Z=0 to +Z thickness.
-    # After rotation, local +Z points along this world direction.
-    local_z_world = rot.multVec(App.Vector(0, 0, 1))
-    local_z_world = _safe_norm(local_z_world)
-    if local_z_world is None:
-        return App.Vector(0, 0, 0)
-
-    # Move opposite local +Z by one thickness so the local Z=t side
-    # is brought back onto the selected slot/face plane.
-    return local_z_world.multiply(-t)
-
 def _pick_face_normal(face):
     try:
         umin, umax, vmin, vmax = face.ParameterRange
