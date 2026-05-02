@@ -302,12 +302,12 @@ class _CmdAddFitting:
                 )
                 return
 
-                rot = fitting_rotation_from_selection(
-                picked_subobj,
-                channel,
-                fitting,
-                current_face_class,
-                )
+            rot = fitting_rotation_from_selection(
+            picked_subobj,
+            channel,
+            fitting,
+            current_face_class,
+            )
 
             App.Console.PrintMessage(f"[UnistrutWB] guess: {guess}\n")
             App.Console.PrintMessage(f"[UnistrutWB] chosen_slot: {slot}\n")
