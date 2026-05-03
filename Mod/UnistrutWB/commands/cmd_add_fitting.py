@@ -111,12 +111,16 @@ def fitting_rotation_from_selection(subobj, channel=None, fitting=None, semantic
         else:
             face_class = "other"
 
-        App.Console.PrintMessage(f"[UnistrutWB] face_normal: {z_dir}\n")
-        App.Console.PrintMessage(f"[UnistrutWB] rotation_face_class: {face_class}"
-                                f" / semantic_face_class: {semantic_face_class}\n"
-                                )
+        effective_face_class = semantic_face_class or face_class
 
-        if face_class == "y_face":
+        App.Console.PrintMessage(f"[UnistrutWB] face_normal: {z_dir}\n")
+        App.Console.PrintMessage(
+            f"[UnistrutWB] rotation_face_class: {face_class}"
+            f" / semantic_face_class: {semantic_face_class}"
+            f" / effective_face_class: {effective_face_class}\n"
+        )
+
+        if effective_face_class == "y_face":
             x_dir = App.Vector(1, 0, 0)
             y_dir = _safe_norm(z_dir.cross(x_dir))
             if y_dir is None:
