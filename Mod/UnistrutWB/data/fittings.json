@@ -4,6 +4,12 @@
     {
   "id": "DEV_ANGLE_90_2LEG",
   "name": "Provisional 90 Degree Angle Plate",
+  "category": "angle_brackets",
+  "display_group": "Angle Brackets",
+  "variant_label": "90 Degree 2-Leg Angle Plate",
+  "hole_diameter_options_in": [0.3125, 0.375, 0.5],
+  "default_hole_diameter_in": 0.5,
+  "hardware_preset": "channel_nut_bolt_washer",
   "family_id": "angle_plate",
   "type": "angle_plate",
   "leg_a_mm": 41.3,
@@ -12,11 +18,11 @@
   "thickness_mm": 6.0,
   "placement": {
     "supported_modes": ["face_mount"],
-    "allowed_face_classes": ["z_face", "open_face"]
+    "allowed_face_classes": ["z_face", "open_face"],
+    "slot_policy": "nearest_slot_center"
   },
-  "slot_policy": "nearest_slot_center", 
   "anchor": {
-    "local_origin": "corner"
+  "local_origin": "corner"
   },
   "orientation": {
     "default_policy": "z_face_normalized"
@@ -29,20 +35,26 @@
 
     {
   "id": "P1065",
-  "name": "4 Hole Splice Plate",
+  "name": "2 Hole Splice Plate",
+  "category": "splice_plates",
+  "display_group": "Splice Plates",
+  "variant_label": "2-Hole Splice Plate",
+  "hole_diameter_options_in": [0.3125, 0.375, 0.5],
+  "default_hole_diameter_in": 0.5,
+  "hardware_preset": "channel_nut_bolt_washer",
   "family_id": "flat_splice_plate",
   "type": "splice_plate",
   "width_mm": 41.3,
   "height_mm": 82.6,
   "thickness_mm": 6.0,
-  "hole_count": 4,
+  "hole_count": 2,
   "placement": {
     "supported_modes": ["face_mount"],
-    "allowed_face_classes": ["open_face"]
+    "allowed_face_classes": ["open_face"],
+    "slot_policy": "nearest_slot_center"
   },
-  "slot_policy": "nearest_slot_center",
   "anchor": {
-    "local_origin": "center"
+  "local_origin": "center"
   },
   "orientation": {
     "default_policy": "z_face_normalized"
