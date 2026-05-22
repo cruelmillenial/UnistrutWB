@@ -186,6 +186,46 @@ def fitting_rotation_from_selection(subobj, channel=None, fitting=None, semantic
 
     return App.Rotation()
 
+def _add_string_prop(obj, name, value):
+    if name not in obj.PropertiesList:
+        obj.addProperty("App::PropertyString", name, "Unistrut")
+    setattr(obj, name, "" if value is None else str(value))
+
+
+def _add_int_prop(obj, name, value):
+    if value is None:
+        return
+    if name not in obj.PropertiesList:
+        obj.addProperty("App::PropertyInteger", name, "Unistrut")
+    setattr(obj, name, int(value))
+
+
+def _add_float_prop(obj, name, value):
+    if value is None:
+        return
+    if name not in obj.PropertiesList:
+        obj.addProperty("App::PropertyFloat", name, "Unistrut")
+    setattr(obj, name, float(value))
+
+
+def add_catalog_metadata(obj, fitting):
+    _add_string_prop(obj, "FamilyId", fitting.get("family_id", ""))
+    _add_string_prop(obj, "FittingType", fitting.get("type", ""))
+    _add_string_prop(obj, "Category", fitting.get("category", ""))
+    _add_string_prop(obj, "DisplayGroup", fitting.get("display_group", ""))
+    _add_string_prop(obj, "VariantLabel", fitting.get("variant_label", ""))
+    _add_string_prop(obj, "HardwarePreset", fitting.get("hardware_preset", ""))
+
+    _add_int_prop(obj, "HoleCount", fitting.get("hole_count"))
+    _add_float_prop(obj, "HoleDiameterIn", fitting.get("default_hole_diameter_in"))
+
+    opts = fitting.get("hole_diameter_options_in", [])
+    _add_string_prop(
+        obj,
+        "HoleDiameterOptionsIn",
+        ", ".join(str(x) for x in opts),
+    )
+
 class _CmdAddFitting:
     def GetResources(self):
         return {"MenuText": "Add Fitting", "ToolTip": "Place a fitting from datastore (placeholder geometry in v0.1)"}
@@ -324,6 +364,8 @@ class _CmdAddFitting:
 
             obj.addProperty("App::PropertyString", "UnistrutType", "Unistrut").UnistrutType = "fitting"
             obj.addProperty("App::PropertyString", "FittingId", "Unistrut").FittingId = fid
+
+            add_catalog_metadata(obj, fitting)
             add_mate_markers(obj, fitting)
 
             offset = fitting_anchor_offset(fitting, picked_subobj, rot)
