@@ -276,10 +276,13 @@ class _CmdAddFitting:
                         channel = s
                         break
 
+            use_selected_placement = channel is not None and picked_subobj is not None
+
             if channel is not None and picked_subobj is None:
                 App.Console.PrintMessage(
-                    "[UnistrutWB] Whole-object selection detected; select a face or edge for precise fitting placement.\n"
+                    "[UnistrutWB] Whole-object selection detected; creating fitting unplaced at origin.\n"
                 )
+                use_selected_placement = False
                 return
 
             App.Console.PrintMessage(f"[UnistrutWB] channel: {channel.Name if channel else None}\n")
@@ -288,76 +291,93 @@ class _CmdAddFitting:
                 f"[UnistrutWB] picked_subobj: {type(picked_subobj).__name__ if picked_subobj else None}\n"
             )
 
-            if not (channel and "SlotCenters" in channel.PropertiesList and channel.SlotCenters):
+            use_selected_placement = channel is not None and picked_subobj is not None
+
+            if channel is not None and picked_subobj is None:
                 App.Console.PrintMessage(
-                    "[UnistrutWB] No valid host profile / SlotCenters available for fitting placement.\n"
+                    "[UnistrutWB] Whole-object selection detected; creating fitting unplaced at origin.\n"
                 )
-                return
+                use_selected_placement = False
 
-            centers = list(channel.SlotCenters)
-            App.Console.PrintMessage(f"[UnistrutWB] slotcenters_count: {len(centers)}\n")
+            if use_selected_placement:
+                if not (channel and "SlotCenters" in channel.PropertiesList and channel.SlotCenters):
+                    App.Console.PrintMessage(
+                        "[UnistrutWB] No valid host profile / SlotCenters available for fitting placement.\n"
+                    )
+                    return
 
-            if picked_point is not None:
-                guess = picked_point
-            elif picked_subobj is not None:
-                try:
-                    guess = picked_subobj.BoundBox.Center
-                except Exception:
-                    guess = centers[0]
-            else:
-                guess = centers[0]
+                centers = list(channel.SlotCenters)
+                App.Console.PrintMessage(f"[UnistrutWB] slotcenters_count: {len(centers)}\n")
 
-            placement = fitting.get("placement", {})
-            supported_modes = placement.get("supported_modes", [])
-            allowed_face_classes = placement.get("allowed_face_classes", [])
-
-            slot_policy = placement.get("slot_policy", "nearest_slot_center")
-
-            current_mode = "face_mount" if isinstance(picked_subobj, Part.Face) else None
-            current_face_class = classify_face(picked_subobj, channel) if picked_subobj is not None else None
-            App.Console.PrintMessage(f"[UnistrutWB] contract_face_class: {current_face_class}\n")
-            
-            if supported_modes and current_mode not in supported_modes:
-                App.Console.PrintMessage(
-                    f"[UnistrutWB] Fitting {fid} does not support placement mode: {current_mode}\n"
-                )
-                return
-
-            if allowed_face_classes and current_face_class not in allowed_face_classes:
-                App.Console.PrintMessage(
-                    f"[UnistrutWB] Fitting {fid} does not support face class: {current_face_class}\n"
-                )
-                return
-
-            App.Console.PrintMessage(f"[UnistrutWB] slot_policy: {slot_policy}\n")
-
-            if slot_policy == "nearest_slot_center":
-                if current_face_class == "open_face":
-                    slot = nearest_slot_center(centers, guess) or centers[0]
+                if picked_point is not None:
+                    guess = picked_point
+                elif picked_subobj is not None:
+                    try:
+                        guess = picked_subobj.BoundBox.Center
+                    except Exception:
+                        guess = centers[0]
                 else:
-                    #SlotCenters live on the open/channel-nut side.
-                    # For non-open faces, honor the picked point instead.
+                    guess = centers[0]
+
+                placement = fitting.get("placement", {})
+                supported_modes = placement.get("supported_modes", [])
+                allowed_face_classes = placement.get("allowed_face_classes", [])
+                slot_policy = placement.get("slot_policy", "nearest_slot_center")
+
+                current_mode = "face_mount" if isinstance(picked_subobj, Part.Face) else None
+                current_face_class = classify_face(picked_subobj, channel) if picked_subobj is not None else None
+                App.Console.PrintMessage(f"[UnistrutWB] contract_face_class: {current_face_class}\n")
+
+                if supported_modes and current_mode not in supported_modes:
+                    App.Console.PrintMessage(
+                        f"[UnistrutWB] Fitting {fid} does not support placement mode: {current_mode}\n"
+                    )
+                    return
+
+                if allowed_face_classes and current_face_class not in allowed_face_classes:
+                    App.Console.PrintMessage(
+                        f"[UnistrutWB] Fitting {fid} does not support face class: {current_face_class}\n"
+                    )
+                    return
+
+                App.Console.PrintMessage(f"[UnistrutWB] slot_policy: {slot_policy}\n")
+
+                if slot_policy == "nearest_slot_center":
+                    if current_face_class == "open_face":
+                        slot = nearest_slot_center(centers, guess) or centers[0]
+                    else:
+                        # SlotCenters live on the open/channel-nut side.
+                        # For non-open faces, honor the picked point instead.
+                        slot = guess
+
+                elif slot_policy == "picked_point":
                     slot = guess
 
-            elif slot_policy == "picked_point":
-                slot = guess
+                else:
+                    App.Console.PrintMessage(
+                        f"[UnistrutWB] Unsupported slot policy for {fid}: {slot_policy}\n"
+                    )
+                    return
+
+                rot = fitting_rotation_from_selection(
+                    picked_subobj,
+                    channel,
+                    fitting,
+                    current_face_class,
+                )
 
             else:
-                App.Console.PrintMessage(
-                    f"[UnistrutWB] Unsupported slot policy for {fid}: {slot_policy}\n"
-                )
-                return
+                guess = App.Vector(0, 0, 0)
+                slot = App.Vector(0, 0, 0)
+                rot = App.Rotation()
+                current_face_class = None
 
-            rot = fitting_rotation_from_selection(
-                picked_subobj,
-                channel,
-                fitting,
-                current_face_class,
+                App.Console.PrintMessage(
+                    "[UnistrutWB] No valid placement selection; creating fitting at origin.\n"
                 )
 
             App.Console.PrintMessage(f"[UnistrutWB] guess: {guess}\n")
             App.Console.PrintMessage(f"[UnistrutWB] chosen_slot: {slot}\n")
-
             obj = doc.addObject("Part::Feature", f"F_{fid}")
             obj.Label = f"F_{fid}"
             obj.Shape = shp
