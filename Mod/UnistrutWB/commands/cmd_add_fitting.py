@@ -276,15 +276,6 @@ class _CmdAddFitting:
                         channel = s
                         break
 
-            use_selected_placement = channel is not None and picked_subobj is not None
-
-            if channel is not None and picked_subobj is None:
-                App.Console.PrintMessage(
-                    "[UnistrutWB] Whole-object selection detected; creating fitting unplaced at origin.\n"
-                )
-                use_selected_placement = False
-                return
-
             App.Console.PrintMessage(f"[UnistrutWB] channel: {channel.Name if channel else None}\n")
             App.Console.PrintMessage(f"[UnistrutWB] picked_point: {picked_point}\n")
             App.Console.PrintMessage(
