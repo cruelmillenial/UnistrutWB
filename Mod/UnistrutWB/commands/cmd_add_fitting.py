@@ -272,12 +272,37 @@ class _CmdAddFitting:
 
         category_combo = QtWidgets.QComboBox()
         variant_combo = QtWidgets.QComboBox()
+        hole_dia_combo = QtWidgets.QComboBox()
 
         for group_label in sorted(fitting_groups.keys()):
             category_combo.addItem(group_label, group_label)
 
         layout.addWidget(category_combo)
         layout.addWidget(variant_combo)
+        layout.addWidget(hole_dia_combo)
+
+
+        def refresh_hole_dia_combo():
+            hole_dia_combo.clear()
+
+            fitting_id = variant_combo.itemData(variant_combo.currentIndex())
+            if not fitting_id:
+                return
+
+            fitting = cat.get_fitting(fitting_id)
+            options = fitting.get("hole_diameter_options_in", [])
+            default = fitting.get("default_hole_diameter_in")
+
+            for opt in options:
+                label = f'{float(opt):g}"'
+                hole_dia_combo.addItem(label, float(opt))
+
+            if default is not None:
+                for i in range(hole_dia_combo.count()):
+                    item_value = hole_dia_combo.itemData(i)
+                    if item_value is not None and abs(float(item_value) - float(default)) < 1e-9:
+                        hole_dia_combo.setCurrentIndex(i)
+                        break
 
 
         def refresh_variant_combo():
@@ -289,8 +314,12 @@ class _CmdAddFitting:
             for variant_label, fitting_id in sorted(variants):
                 variant_combo.addItem(variant_label, fitting_id)
 
+            refresh_hole_dia_combo()
+
 
         category_combo.currentIndexChanged.connect(refresh_variant_combo)
+        variant_combo.currentIndexChanged.connect(refresh_hole_dia_combo)
+
         refresh_variant_combo()
 
         btns = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
@@ -302,9 +331,10 @@ class _CmdAddFitting:
                 App.Console.PrintMessage(
                 "[UnistrutWB] No fitting variant selected.\n"
             )
-                return
+            return
 
             fitting = cat.get_fitting(fid)
+            selected_hole_dia = hole_dia_combo.itemData(hole_dia_combo.currentIndex())
             shp = build_fitting_shape(fitting)
             doc = App.ActiveDocument or App.newDocument("UnistrutWB")
 
@@ -431,6 +461,8 @@ class _CmdAddFitting:
             obj.addProperty("App::PropertyString", "FittingId", "Unistrut").FittingId = fid
 
             add_catalog_metadata(obj, fitting)
+            if selected_hole_dia is not None:
+                _add_float_prop(obj, "HoleDiameterIn", selected_hole_dia)
             add_mate_markers(obj, fitting)
 
             offset = fitting_anchor_offset(fitting, picked_subobj, rot)
