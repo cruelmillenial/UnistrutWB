@@ -226,6 +226,20 @@ def add_catalog_metadata(obj, fitting):
         ", ".join(str(x) for x in opts),
     )
 
+def next_unplaced_fitting_base(doc, spacing_mm=75.0):
+    if doc is None:
+        return App.Vector(0, 0, 0)
+
+    count = 0
+    for obj in doc.Objects:
+        if (
+            getattr(obj, "UnistrutType", "") == "fitting"
+            and getattr(obj, "HostProfile", "") == ""
+        ):
+            count += 1
+
+    return App.Vector(count * spacing_mm, 0, 0)
+
 class _CmdAddFitting:
     def GetResources(self):
         return {"MenuText": "Add Fitting", "ToolTip": "Place a fitting from datastore (placeholder geometry in v0.1)"}
@@ -326,16 +340,32 @@ class _CmdAddFitting:
         layout.addWidget(btns)
 
         def ok():
+            App.Console.PrintMessage("[UnistrutWB] ok() entered\n")
+
+            App.Console.PrintMessage(
+                f"[UnistrutWB] variant index: {variant_combo.currentIndex()}\n"
+            )
+
             fid = variant_combo.itemData(variant_combo.currentIndex())
+
+            App.Console.PrintMessage(f"[UnistrutWB] selected fid: {fid}\n")
+
             if not fid:
                 App.Console.PrintMessage(
                 "[UnistrutWB] No fitting variant selected.\n"
             )
-            return
+                return
 
             fitting = cat.get_fitting(fid)
+            App.Console.PrintMessage("[UnistrutWB] fitting loaded\n")
+
             selected_hole_dia = hole_dia_combo.itemData(hole_dia_combo.currentIndex())
+            App.Console.PrintMessage(
+                f"[UnistrutWB] selected_hole_dia: {selected_hole_dia}\n"
+            )
+
             shp = build_fitting_shape(fitting)
+            App.Console.PrintMessage("[UnistrutWB] fitting shape built\n")
             doc = App.ActiveDocument or App.newDocument("UnistrutWB")
 
             channel = None
@@ -442,8 +472,9 @@ class _CmdAddFitting:
                 )
 
             else:
-                guess = App.Vector(0, 0, 0)
-                slot = App.Vector(0, 0, 0)
+                base = next_unplaced_fitting_base(doc)
+                guess = base
+                slot = base
                 rot = App.Rotation()
                 current_face_class = None
 
