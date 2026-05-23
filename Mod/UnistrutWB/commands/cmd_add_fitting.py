@@ -231,7 +231,15 @@ class _CmdAddFitting:
         return {"MenuText": "Add Fitting", "ToolTip": "Place a fitting from datastore (placeholder geometry in v0.1)"}
 
     def Activated(self):
-        cat = Catalog.load()
+        cat = Catalog.load(force_reload=True)
+        for fitting_id in cat.list_fittings():
+            f = cat.get_fitting(fitting_id)
+            App.Console.PrintMessage(
+                f"[UnistrutWB] fitting {fitting_id}: "
+                f"display_group={f.get('display_group')} "
+                f"category={f.get('category')} "
+                f"variant={f.get('variant_label')}\n"
+            )
         sel_ex_initial = Gui.Selection.getSelectionEx()
         sel_initial = Gui.Selection.getSelection()
         dlg = QtWidgets.QDialog()
@@ -241,15 +249,61 @@ class _CmdAddFitting:
         if doc is None:
             doc = App.newDocument()
 
-        combo = QtWidgets.QComboBox()
-        combo.addItems(cat.list_fittings())
-        layout.addWidget(combo)
+        fitting_groups = {}
+
+        for fitting_id in cat.list_fittings():
+            fitting = cat.get_fitting(fitting_id)
+
+            group_label = (
+                fitting.get("display_group")
+                or fitting.get("category")
+                or "Other"
+            )
+
+            variant_label = (
+                fitting.get("variant_label")
+                or fitting.get("name")
+                or fitting_id
+            )
+
+            fitting_groups.setdefault(group_label, []).append(
+                (variant_label, fitting_id)
+            )
+
+        category_combo = QtWidgets.QComboBox()
+        variant_combo = QtWidgets.QComboBox()
+
+        for group_label in sorted(fitting_groups.keys()):
+            category_combo.addItem(group_label, group_label)
+
+        layout.addWidget(category_combo)
+        layout.addWidget(variant_combo)
+
+
+        def refresh_variant_combo():
+            variant_combo.clear()
+
+            group_label = category_combo.itemData(category_combo.currentIndex())
+            variants = fitting_groups.get(group_label, [])
+
+            for variant_label, fitting_id in sorted(variants):
+                variant_combo.addItem(variant_label, fitting_id)
+
+
+        category_combo.currentIndexChanged.connect(refresh_variant_combo)
+        refresh_variant_combo()
 
         btns = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
         layout.addWidget(btns)
 
         def ok():
-            fid = combo.currentText()
+            fid = variant_combo.itemData(variant_combo.currentIndex())
+            if not fid:
+                App.Console.PrintMessage(
+                "[UnistrutWB] No fitting variant selected.\n"
+            )
+                return
+
             fitting = cat.get_fitting(fid)
             shp = build_fitting_shape(fitting)
             doc = App.ActiveDocument or App.newDocument("UnistrutWB")
