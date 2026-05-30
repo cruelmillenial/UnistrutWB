@@ -28,9 +28,23 @@
     "default_policy": "z_face_normalized"
   },
   "mate_frames": [
-    { "id": "A", "kind": "LCS" },
-    { "id": "B", "kind": "LCS" }
-  ]
+  {
+    "id": "A",
+    "kind": "LCS",
+    "role": "leg_a_mounting_face",
+    "target": "Plane_LegA_MountingFace",
+    "origin": "Point_Corner",
+    "description": "Mounting frame for leg A"
+  },
+  {
+    "id": "B",
+    "kind": "LCS",
+    "role": "leg_b_mounting_face",
+    "target": "Plane_LegB_MountingFace",
+    "origin": "Point_Corner",
+    "description": "Mounting frame for leg B"
+  }
+]
     },
 
     {
@@ -60,8 +74,17 @@
     "default_policy": "z_face_normalized"
   },
   "mate_frames": [
-    { "id": "A", "kind": "LCS" }
-  ]
+  {
+    "id": "A",
+    "kind": "LCS",
+    "role": "mounting_face",
+    "target": "Plane_MountingFace",
+    "origin": "Point_Center",
+    "x_axis": "local_x",
+    "z_axis": "mounting_normal",
+    "description": "Primary mounting frame centered on splice plate"
+  }
+]
   }
   ]
 }
