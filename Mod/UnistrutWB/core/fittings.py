@@ -11,7 +11,7 @@ from typing import Dict, Any
 
 import FreeCAD as App
 import Part
-
+import json
 
 def build_fitting_shape(fitting: Dict[str, Any]) -> Part.Shape:
     typ = fitting.get("type", "")
@@ -58,4 +58,13 @@ def add_mate_markers(obj, fitting: Dict[str, Any]) -> None:
             "Available mate frame identifiers"
         )
 
+    if "MateFrameMetadata" not in obj.PropertiesList:
+        obj.addProperty(
+            "App::PropertyString",
+            "MateFrameMetadata",
+            "Unistrut",
+            "Serialized mate frame metadata"
+        )
+
     obj.MateFrames = [f.get("id", "") for f in frames]
+    obj.MateFrameMetadata = json.dumps(frames, sort_keys=True)
