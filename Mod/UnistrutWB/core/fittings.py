@@ -14,7 +14,7 @@ import Part
 import json
 
 def build_fitting_shape(fitting: Dict[str, Any]) -> Part.Shape:
-    typ = fitting.get("type", "")
+    typ = fitting.get("geometry_type") or fitting.get("type", "")
 
     if typ == "splice_plate":
         return _build_splice_plate(fitting)
