@@ -490,6 +490,41 @@ Records should gradually evolve to include:
     axis hints
     description
 
+## Fitting schema naming convention
+
+Phase 1 fitting records should distinguish catalog identity from geometry builder dispatch.
+
+Recommended fields:
+
+    id
+    name
+    category
+    display_group
+    variant_label
+    family_id
+    type
+    geometry_type
+
+Current meanings:
+
+    family_id = catalog/product family bucket
+    type = legacy fitting type field, retained for backward compatibility
+    geometry_type = explicit shape-builder discriminator used by build_fitting_shape()
+
+Current Phase 1 examples:
+
+    P1065:
+      family_id = flat_splice_plate
+      type = splice_plate
+      geometry_type = splice_plate
+
+    DEV_ANGLE_90_2LEG:
+      family_id = angle_plate
+      type = angle_plate
+      geometry_type = angle_plate
+
+Future migration may rename or replace `type` with a less ambiguous catalog-facing field, but `geometry_type` should remain the geometry dispatch key.
+
 ## Implementation phases
 
 ### Phase 1 — schema metadata
