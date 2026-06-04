@@ -525,6 +525,21 @@ Current Phase 1 examples:
 
 Future migration may rename or replace `type` with a less ambiguous catalog-facing field, but `geometry_type` should remain the geometry dispatch key.
 
+## Legacy fitting `type` field
+
+The `type` field is deprecated for geometry dispatch.
+
+Use `geometry_type` for selecting the shape builder.
+
+Current compatibility behavior:
+
+    geometry_type = preferred geometry dispatch field
+    type = legacy fallback only
+
+Do not add new semantics to `type`.
+
+Future catalog-facing classification should use a clearer field name only after more catalog fitting families are normalized.
+
 ## Implementation phases
 
 ### Phase 1 — schema metadata
