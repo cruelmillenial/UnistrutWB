@@ -4,7 +4,7 @@ Smoke-test fittings.json schema health.
 
 Run from repo root:
 
-    python3 tests/smoke_fittings_schema.py
+    python3 scripts/smoke_fittings_schema.py
 
 No FreeCAD dependency.
 """
