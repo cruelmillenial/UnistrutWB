@@ -16,6 +16,60 @@ FreeCAD Fasteners = bolts, nuts, washers, and standard hardware geometry
 
 The workbench should create useful, metadata-rich CAD objects that can be refined, constrained, assembled, and documented using other FreeCAD workbenches.
 
+## Schema smoke tests
+
+Before expanding profile or fitting catalog records, run the combined no-FreeCAD schema smoke check from the repository root:
+
+```bash
+python3 scripts/smoke_all_schema.py
+```
+
+This command runs the current Phase 1 datastore checks:
+
+```bash
+python3 scripts/smoke_fittings_schema.py
+python3 scripts/smoke_profiles_schema.py
+```
+
+These schema smoke tests are pure Python validation utilities. They do not require FreeCAD, do not launch the workbench, and should pass before catalog breadth is expanded.
+
+Schema smoke utilities live under `scripts/`. Do not reference `tests/` for these commands unless the project later adopts a separate test-runner layout.
+
+## Profile expansion checklist
+
+Do not add a new production profile record until `python3 scripts/smoke_all_schema.py` passes.
+
+Minimum record checklist:
+
+- `id`: catalog/profile identifier.
+- `family`: catalog-facing family bucket.
+- `gauge`: positive gauge value.
+- `geometry`: width, height, and thickness with numeric `mm` values.
+- `geometry.profile_spec`: shape-builder contract such as `u_channel_lipped`, including required dimensions like `t.mm` and `lip_return.mm`.
+- `finishes`: non-empty list of finish codes.
+- `standard_lengths`: at least one non-empty length list.
+- `provenance`: catalog/source notes when available.
+- Combined smoke runner passes after the edit.
+
+## Fitting expansion checklist
+
+Do not add a new Phase 1 fitting record until `python3 scripts/smoke_all_schema.py` passes.
+
+Minimum record checklist:
+
+- `id`, `name`, `category`, `display_group`, and `variant_label`.
+- `family_id`: product/family bucket.
+- `geometry_type`: shape-builder discriminator.
+- `type`: retained only as a legacy fallback during Phase 1; keep it aligned with `geometry_type` until the fallback is removed.
+- `hole_diameter_options_in` and `default_hole_diameter_in`, with default included in options.
+- `hardware_preset` or equivalent metadata for later BOM/Fasteners handoff.
+- `placement`: supported modes, allowed face classes, and slot policy.
+- `anchor`: local-origin convention.
+- `orientation`: default orientation policy.
+- `mate_frames`: Assembly-facing reference metadata with `id`, `kind`, and `role`.
+- `provenance`: catalog/source notes when available.
+- Combined smoke runner passes after the edit.
+
 ## Current capabilities
 
 The current development branch supports:
@@ -58,6 +112,7 @@ display_group
 variant_label
 family_id
 type
+geometry_type
 hole_count
 hole_diameter_options_in
 default_hole_diameter_in
@@ -109,15 +164,7 @@ This placement layer is an authoring convenience, not the final assembly engine.
 
 FreeCAD Assembly is expected to own final positioning and constraints.
 
-UnistrutWB should expose clean geometry, stable origins, useful metadata, and eventually reference/mate-frame information for objects such as:
-
-- channel longitudinal axis
-- open-face plane
-- slot centerline
-- slot centers
-- end planes
-- fitting mounting faces
-- fitting hole centers / axes
+UnistrutWB should expose clean geometry, stable origins, useful metadata, and eventually reference/mate-frame information.
 
 The goal is to make generated UnistrutWB objects Assembly-friendly.
 
@@ -125,15 +172,7 @@ The goal is to make generated UnistrutWB objects Assembly-friendly.
 
 UnistrutWB should not custom-model standard fasteners.
 
-Instead, fitting records should carry hardware metadata such as:
-
-```text
-thread / bolt size
-channel nut type
-washer requirements
-hardware preset
-BOM line items
-```
+Instead, fitting records should carry hardware metadata such as thread / bolt size, channel nut type, washer requirements, hardware preset, and BOM line items.
 
 Fastener geometry should be handled later through FreeCAD Fasteners or compatible tooling.
 
@@ -166,6 +205,7 @@ Restart FreeCAD after code changes unless using manual module reloads.
 Near-term priorities:
 
 - Keep Add Fitting focused on catalog object authoring.
+- Keep schema guardrails passing before adding catalog breadth.
 - Improve fitting schema and metadata.
 - Define Assembly-facing mate-frame/reference contracts.
 - Improve BOM/export fidelity.
