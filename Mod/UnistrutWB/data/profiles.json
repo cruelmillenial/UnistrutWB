@@ -3,17 +3,27 @@
   "profiles": [
     {
       "id": "P4100",
+      "family": "1-5/8 x 13/16",
+      "gauge": 14,
       "geometry": {
         "width": { "mm": 41.3 },
         "height": { "mm": 20.6375 },
         "thickness": { "mm": 1.9 },
-        "piercing": { "series": "T", "template": null,
-        "overrides": {} },
+        "piercing": {
+          "series": "T",
+          "template": null,
+          "overrides": {}
+        },
         "profile_spec": {
           "kind": "u_channel_lipped",
           "t": { "mm": 1.9 },
           "lip_return": { "mm": 9.5 }
         }
+      },
+      "finishes": ["EG", "HG", "GR", "PL", "PG", "DF", "ZD"],
+      "standard_lengths": {
+        "ft": [10.0, 20.0],
+        "m": [3.048, 6.096]
       }
     }
   ]
