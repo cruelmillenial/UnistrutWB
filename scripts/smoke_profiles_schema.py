@@ -4,7 +4,7 @@ Smoke-test profiles.json schema health.
 
 Run from repo root:
 
-    python3 tests/smoke_profiles_schema.py
+    python3 scripts/smoke_profiles_schema.py
 
 No FreeCAD dependency.
 """
