@@ -19,5 +19,3 @@ def _existing_profile_count(doc):
     if doc is None:
         return 0
     count = 0
-    for existing in doc.Objects:
-        if getattr
