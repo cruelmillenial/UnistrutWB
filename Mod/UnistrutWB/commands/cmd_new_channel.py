@@ -11,6 +11,37 @@ try:
 except Exception:
     from PySide2 import QtWidgets
 
+
+def _next_profile_authoring_placement(
+    doc,
+    width_mm: float,
+    gap_mm: float = 25.0,
+) -> App.Placement:
+    """
+    Viewer-only authoring convenience.
+
+    New channel profile objects should not spawn directly inside earlier
+    channel profile objects. This is intentionally not Assembly placement,
+    mating, constraint solving, or mechanical design intent.
+    """
+    if doc is None:
+        return App.Placement()
+
+    profile_count = 0
+    for existing in getattr(doc, "Objects", []):
+        if getattr(existing, "UnistrutType", "") == "profile":
+            profile_count += 1
+
+    if profile_count <= 0:
+        return App.Placement()
+
+    step_mm = max(float(width_mm), 1.0) + float(gap_mm)
+    return App.Placement(
+        App.Vector(0, profile_count * step_mm, 0),
+        App.Rotation(),
+    )
+
+
 class _CmdNewChannel:
     def GetResources(self):
         return {
@@ -52,11 +83,18 @@ class _CmdNewChannel:
             pid = combo.currentText()
             prof = cat.get_profile(pid)
             shp = build_channel(prof, float(length.value()), mode.currentText().lower())
+            geom = prof.get("geometry") or {}
 
             doc = App.ActiveDocument or App.newDocument("UnistrutWB")
+
+            try:
+                width_mm = float(geom["width"]["mm"])
+            except Exception:
+                width_mm = 50.0
             obj = doc.addObject("Part::Feature", f"U_{pid}")
             obj.Label = f"U_{pid}"
             obj.Shape = shp
+            obj.Placement = _next_profile_authoring_placement(doc, width_mm)
 
             obj.addProperty("App::PropertyString", "UnistrutType", "Unistrut").UnistrutType = "profile"
             obj.addProperty("App::PropertyString", "ProfileId", "Unistrut").ProfileId = pid
