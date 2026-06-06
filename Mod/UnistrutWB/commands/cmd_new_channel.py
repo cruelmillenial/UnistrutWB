@@ -14,4 +14,8 @@ except Exception:
 class _CmdNewChannel:
     def GetResources(self):
         return {
-            "MenuText": "New
+            "MenuText": "New Channel",
+            "ToolTip": "Create a parametric Unistrut channel from datastore",
+        }
+
+   
