@@ -15,4 +15,9 @@ except Exception:
 CHANNEL_VIEWER_GAP_MM = 25.0
 
 
-def _existing_profile
+def _existing_profile_count(doc):
+    if doc is None:
+        return 0
+    count = 0
+    for existing in doc.Objects:
+        if getattr
