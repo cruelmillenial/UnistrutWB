@@ -6,9 +6,15 @@
       "family": "1-5/8 x 13/16",
       "gauge": 14,
       "geometry": {
-        "width": { "mm": 41.3 },
-        "height": { "mm": 20.6375 },
-        "thickness": { "mm": 1.9 },
+        "width": {
+          "mm": 41.3
+        },
+        "height": {
+          "mm": 20.6375
+        },
+        "thickness": {
+          "mm": 1.9
+        },
         "piercing": {
           "series": "T",
           "template": null,
@@ -16,41 +22,131 @@
         },
         "profile_spec": {
           "kind": "u_channel_lipped",
-          "t": { "mm": 1.9 },
-          "lip_return": { "mm": 9.5 }
+          "t": {
+            "mm": 1.9
+          },
+          "lip_return": {
+            "mm": 9.5
+          }
         }
       },
-      "finishes": ["EG", "HG", "GR", "PL", "PG", "DF", "ZD"],
+      "finishes": [
+        "EG",
+        "HG",
+        "GR",
+        "PL",
+        "PG",
+        "DF",
+        "ZD"
+      ],
       "standard_lengths": {
-        "ft": [10.0, 20.0],
-        "m": [3.048, 6.096]
+        "ft": [
+          10.0,
+          20.0
+        ],
+        "m": [
+          3.048,
+          6.096
+        ]
       }
     },
-
     {
-  "id": "P4000",
-  "family": "1-5/8 x 13/16",
-  "gauge": 16,
-  "geometry": {
-    "width": { "mm": 41.3 },
-    "height": { "mm": 20.6375 },
-    "thickness": { "mm": 1.5 },
-    "piercing": {
-      "series": null,
-      "template": null,
-      "overrides": {}
+      "id": "P4000",
+      "family": "1-5/8 x 13/16",
+      "gauge": 16,
+      "geometry": {
+        "width": {
+          "mm": 41.3
+        },
+        "height": {
+          "mm": 20.6375
+        },
+        "thickness": {
+          "mm": 1.5
+        },
+        "piercing": {
+          "series": null,
+          "template": null,
+          "overrides": {}
+        },
+        "profile_spec": {
+          "kind": "u_channel_lipped",
+          "t": {
+            "mm": 1.5
+          },
+          "lip_return": {
+            "mm": 9.5
+          }
+        }
+      },
+      "finishes": [
+        "EG",
+        "HG",
+        "GR",
+        "PL",
+        "PG",
+        "DF",
+        "ZD"
+      ],
+      "standard_lengths": {
+        "ft": [
+          10.0,
+          20.0
+        ],
+        "m": [
+          3.048,
+          6.096
+        ]
+      }
     },
-    "profile_spec": {
-      "kind": "u_channel_lipped",
-      "t": { "mm": 1.5 },
-      "lip_return": { "mm": 9.5 }
+    {
+      "id": "P1000",
+      "family": "1-5/8 x 1-5/8",
+      "gauge": 12,
+      "geometry": {
+        "width": {
+          "mm": 41.3
+        },
+        "height": {
+          "mm": 41.3
+        },
+        "thickness": {
+          "mm": 2.7
+        },
+        "piercing": {
+          "series": null,
+          "template": null,
+          "overrides": {}
+        },
+        "profile_spec": {
+          "kind": "u_channel_lipped",
+          "t": {
+            "mm": 2.7
+          },
+          "lip_return": {
+            "mm": 9.5
+          }
+        }
+      },
+      "finishes": [
+        "EG",
+        "HG",
+        "GR",
+        "PL",
+        "PG",
+        "DF",
+        "ZD"
+      ],
+      "standard_lengths": {
+        "ft": [
+          10.0,
+          20.0
+        ],
+        "m": [
+          3.048,
+          6.096
+        ]
+      }
     }
-  },
-  "finishes": ["EG", "HG", "GR", "PL", "PG", "DF", "ZD"],
-  "standard_lengths": {
-    "ft": [10.0, 20.0],
-    "m": [3.048, 6.096]
-  }
-}
   ]
 }
