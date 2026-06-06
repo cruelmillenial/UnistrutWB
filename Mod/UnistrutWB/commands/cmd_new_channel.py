@@ -15,5 +15,4 @@ except Exception:
 CHANNEL_VIEWER_GAP_MM = 25.0
 
 
-def _existing_profile_count(doc) -> int:
-    """Count
+def _existing_profile
