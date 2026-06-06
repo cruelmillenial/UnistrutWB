@@ -11,11 +11,7 @@ try:
 except Exception:
     from PySide2 import QtWidgets
 
-
-CHANNEL_VIEWER_GAP_MM = 25.0
-
-
-def _existing_profile_count(doc):
-    if doc is None:
-        return 0
-    count = 0
+class _CmdNewChannel:
+    def GetResources(self):
+        return {
+            "MenuText": "New
