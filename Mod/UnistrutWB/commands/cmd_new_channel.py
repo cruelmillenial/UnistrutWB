@@ -74,6 +74,16 @@ class _CmdNewChannel:
         finish.setPlaceholderText("Finish code (e.g., EG, HG, GR)")
         layout.addWidget(finish)
 
+        piercing = QtWidgets.QComboBox()
+        piercing.addItem("Profile default", "__profile__")
+        piercing.addItem("Plain / solid", "__plain__")
+        piercing.addItem("T slotted", "T")
+        layout.addWidget(piercing)
+
+        hole_clearance = QtWidgets.QLineEdit("0.5")
+        hole_clearance.setPlaceholderText("Hole / clearance size in inches, metadata only")
+        layout.addWidget(hole_clearance)
+
         btns = QtWidgets.QDialogButtonBox(
             QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
         )
@@ -82,8 +92,27 @@ class _CmdNewChannel:
         def ok():
             pid = combo.currentText()
             prof = cat.get_profile(pid)
-            shp = build_channel(prof, float(length.value()), mode.currentText().lower())
             geom = prof.get("geometry") or {}
+            selected_piercing = piercing.currentData()
+
+            prof_for_channel = dict(prof)
+            geom_for_channel = dict(geom)
+
+            if selected_piercing == "__plain__":
+                piercing_for_channel = dict(geom_for_channel.get("piercing") or {})
+                piercing_for_channel["series"] = None
+                piercing_for_channel["template"] = None
+                piercing_for_channel["overrides"] = {}
+                geom_for_channel["piercing"] = piercing_for_channel
+            elif selected_piercing not in ("__profile__", None):
+                piercing_for_channel = dict(geom_for_channel.get("piercing") or {})
+                piercing_for_channel["series"] = selected_piercing
+                piercing_for_channel["template"] = None
+                piercing_for_channel["overrides"] = {}
+                geom_for_channel["piercing"] = piercing_for_channel
+
+            prof_for_channel["geometry"] = geom_for_channel
+            shp = build_channel(prof_for_channel, float(length.value()), mode.currentText().lower())
 
             doc = App.ActiveDocument or App.newDocument("UnistrutWB")
 
@@ -101,6 +130,8 @@ class _CmdNewChannel:
             obj.addProperty("App::PropertyLength", "Length", "Unistrut").Length = float(length.value())
             obj.addProperty("App::PropertyString", "Finish", "Unistrut").Finish = finish.text().strip() or "EG"
             obj.addProperty("App::PropertyString", "Mode", "Unistrut").Mode = mode.currentText()
+            obj.addProperty("App::PropertyString", "PiercingPreset", "Unistrut").PiercingPreset = piercing.currentData()
+            obj.addProperty("App::PropertyString", "HoleClearanceIn", "Unistrut").HoleClearanceIn = hole_clearance.text().strip()
 
             if "SlotCenters" not in obj.PropertiesList:
                 obj.addProperty(
@@ -110,15 +141,14 @@ class _CmdNewChannel:
                     "Computed slot center points",
                 )
 
-            geom = prof.get("geometry") or {}
-            series = resolve_piercing_spec(prof)
+            series = resolve_piercing_spec(prof_for_channel)
 
             centers = []
-            if series:
+            if series and "slot_pattern" in series:
                 centers = compute_slot_centers(
                     series,
                     float(length.value()),
-                    width_mm=float(geom["width"]["mm"]),
+                    width_mm=float(geom_for_channel["width"]["mm"]),
                 )
 
             obj.SlotCenters = [App.Vector(x, y, z) for (x, y, z) in centers]
