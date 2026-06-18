@@ -19,6 +19,7 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PROFILES_JSON = REPO_ROOT / "Mod" / "UnistrutWB" / "data" / "profiles.json"
+MAPPING_HOLE_SERIES_JSON = REPO_ROOT / "Mod" / "UnistrutWB" / "data" / "mapping_hole_series.json"
 
 
 REQUIRED_PROFILE_FIELDS = [
@@ -91,6 +92,82 @@ def load_profiles(path: Path) -> list[dict[str, Any]]:
         raise TypeError(f"{path}: expected top-level 'profiles' list")
 
     return profiles
+
+
+def load_hole_series(path: Path) -> dict[str, Any]:
+    with path.open("r", encoding="utf-8") as f:
+        raw = json.load(f)
+
+    if not isinstance(raw, dict):
+        raise TypeError(f"{path}: expected top-level JSON object")
+
+    hole_series = raw.get("hole_series")
+    if isinstance(hole_series, dict):
+        return hole_series
+
+    series = raw.get("series")
+    if isinstance(series, dict):
+        return series
+
+    raise TypeError(f"{path}: expected top-level 'hole_series' object")
+
+
+def validate_piercing_series(
+    profile: dict[str, Any],
+    index: int,
+    hole_series: dict[str, Any],
+) -> list[str]:
+    errors: list[str] = []
+    pid = profile.get("id") or f"<missing id at index {index}>"
+
+    geometry = profile.get("geometry")
+    if not isinstance(geometry, dict):
+        return errors
+
+    piercing = geometry.get("piercing")
+    if piercing in (None, {}):
+        return errors
+
+    if not isinstance(piercing, dict):
+        fail(errors, f"{pid}: geometry.piercing must be an object when present")
+        return errors
+
+    series_id = piercing.get("series")
+    if series_id in (None, ""):
+        return errors
+
+    if not isinstance(series_id, str):
+        fail(errors, f"{pid}: geometry.piercing.series must be a string or null")
+        return errors
+
+    if series_id not in hole_series:
+        fail(errors, f"{pid}: geometry.piercing.series '{series_id}' not found in mapping_hole_series.json")
+        return errors
+
+    series_record = hole_series[series_id]
+    if not isinstance(series_record, dict):
+        fail(errors, f"{pid}: hole series '{series_id}' mapping must be an object")
+        return errors
+
+    slot_pattern = series_record.get("slot_pattern")
+    if not isinstance(slot_pattern, dict):
+        fail(errors, f"{pid}: hole series '{series_id}' missing usable slot_pattern object")
+        return errors
+
+    for field_name in (
+        "pitch_mm",
+        "slot_length_mm",
+        "slot_width_mm",
+    ):
+        value = slot_pattern.get(field_name)
+        try:
+            if float(value) <= 0:
+                fail(errors, f"{pid}: hole series '{series_id}' slot_pattern.{field_name} must be positive")
+        except (TypeError, ValueError):
+            fail(errors, f"{pid}: hole series '{series_id}' slot_pattern.{field_name} missing or non-numeric")
+
+
+    return errors
 
 
 def validate_profile(profile: dict[str, Any], index: int) -> list[str]:
@@ -188,10 +265,20 @@ def main() -> int:
         print(f"ERROR: missing file: {PROFILES_JSON}", file=sys.stderr)
         return 2
 
+    if not MAPPING_HOLE_SERIES_JSON.exists():
+        print(f"ERROR: missing file: {MAPPING_HOLE_SERIES_JSON}", file=sys.stderr)
+        return 2
+
     try:
         profiles = load_profiles(PROFILES_JSON)
     except Exception as e:
         print(f"ERROR: failed to load {PROFILES_JSON}: {e}", file=sys.stderr)
+        return 2
+
+    try:
+        hole_series = load_hole_series(MAPPING_HOLE_SERIES_JSON)
+    except Exception as e:
+        print(f"ERROR: failed to load {MAPPING_HOLE_SERIES_JSON}: {e}", file=sys.stderr)
         return 2
 
     errors: list[str] = []
@@ -209,6 +296,7 @@ def main() -> int:
             seen_ids.add(pid)
 
         errors.extend(validate_profile(profile, index))
+        errors.extend(validate_piercing_series(profile, index, hole_series))
 
     if errors:
         print("profiles.json schema smoke test FAILED")
