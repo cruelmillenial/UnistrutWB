@@ -16,6 +16,15 @@ FreeCAD Fasteners = bolts, nuts, washers, and standard hardware geometry
 
 The workbench should create useful, metadata-rich CAD objects that can be refined, constrained, assembled, and documented using other FreeCAD workbenches.
 
+## Project documentation
+
+The current architecture and contribution rules are captured in:
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — product boundary, command ownership, New Channel / Add Fitting split, piercing model, and SlotCenters intent.
+- [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — catalog datastore structure, profile/fitting record expectations, generated-object metadata, and schema smoke references.
+- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — development workflow, smoke-test discipline, commit discipline, and catalog expansion rules.
+- [`docs/assembly_reference_schema.md`](docs/assembly_reference_schema.md) — Assembly-facing reference geometry and mate-frame concepts.
+
 ## Schema smoke tests
 
 Before expanding profile or fitting catalog records, run the combined no-FreeCAD schema smoke check from the repository root:
@@ -51,6 +60,8 @@ Minimum record checklist:
 - `provenance`: catalog/source notes when available.
 - Combined smoke runner passes after the edit.
 
+See [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) and [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) for fuller profile rules and catalog-expansion workflow.
+
 ## Fitting expansion checklist
 
 Do not add a new Phase 1 fitting record until `python3 scripts/smoke_all_schema.py` passes.
@@ -70,16 +81,24 @@ Minimum record checklist:
 - `provenance`: catalog/source notes when available.
 - Combined smoke runner passes after the edit.
 
+See [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) and [`docs/assembly_reference_schema.md`](docs/assembly_reference_schema.md) for fuller fitting and reference-metadata details.
+
 ## Current capabilities
 
 The current development branch supports:
 
 - Creating Unistrut channel profiles from JSON data
-- Generating slot centers on channel objects
+- Current profile records: `P4100`, `P4000`, `P1000`, and `P1100`
+- Generating slotted or plain/solid channel instances from catalog profiles
+- New Channel piercing controls: `Profile default`, `Plain / solid`, and `T slotted`
+- Recording generated-channel metadata such as `PiercingPreset`, `HoleClearanceIn`, and `SlotCenters`
+- Offsetting newly created channel objects for easier viewer-authoring inspection
+- Generating slot centers on channel objects when the active piercing pattern supports them
 - Adding catalog-aware fitting objects
+- Current fitting records: `P1065` and `DEV_ANGLE_90_2LEG`
 - Grouping fittings by category and variant in the Add Fitting dialog
 - Selecting hole diameter presets during fitting creation
-- Attaching catalog metadata to generated fitting objects
+- Attaching catalog metadata and mate-frame metadata to generated fitting objects
 - Rough face-based fitting placement as an authoring convenience
 - Creating unplaced fitting objects when no valid host face is selected
 - Exporting a basic BOM / cut list CSV
@@ -123,6 +142,26 @@ orientation
 mate_frames
 ```
 
+The detailed datastore contract lives in [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md).
+
+## New Channel workflow
+
+The New Channel command creates channel objects from `profiles.json`.
+
+Current flow:
+
+1. Choose a profile, such as `P4100`, `P4000`, `P1000`, or `P1100`.
+2. Choose length, finish, and mode metadata.
+3. Choose piercing behavior:
+   - `Profile default`
+   - `Plain / solid`
+   - `T slotted`
+4. Create the generated channel object.
+
+Piercing selection is applied before channel geometry generation. This means the generated object can preserve catalog identity while carrying instance-level authoring intent.
+
+For example, a catalog-default plain profile can still generate a slotted instance while preserving `ProfileId`.
+
 ## Add Fitting workflow
 
 The Add Fitting dialog is moving toward catalog object authoring rather than final assembly placement.
@@ -160,13 +199,17 @@ For current Phase 1 fitting tests:
 
 This placement layer is an authoring convenience, not the final assembly engine.
 
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the command-boundary explanation.
+
 ## Assembly strategy
 
 FreeCAD Assembly is expected to own final positioning and constraints.
 
-UnistrutWB should expose clean geometry, stable origins, useful metadata, and eventually reference/mate-frame information.
+UnistrutWB should expose clean geometry, stable origins, useful metadata, and reference/mate-frame information.
 
-The goal is to make generated UnistrutWB objects Assembly-friendly.
+The goal is to make generated UnistrutWB objects Assembly-friendly without turning UnistrutWB into an Assembly solver.
+
+See [`docs/assembly_reference_schema.md`](docs/assembly_reference_schema.md) for the current Assembly-facing reference schema.
 
 ## Fasteners strategy
 
@@ -194,23 +237,25 @@ Restart FreeCAD after code changes unless using manual module reloads.
 1. Open FreeCAD.
 2. Switch to the `UnistrutWB` workbench.
 3. Use `New Channel` to create a `P4100` channel.
-4. Use `Add Fitting`.
-5. Confirm the dialog shows fitting categories and variants.
-6. Create a `P1065` splice plate or `DEV_ANGLE_90_2LEG` angle bracket.
-7. Select the generated fitting and confirm catalog metadata appears in the property panel.
-8. Use FreeCAD Assembly for final placement or constraint experiments.
+4. Confirm piercing controls are available.
+5. Create a channel using `Profile default`, `Plain / solid`, or `T slotted`.
+6. Use `Add Fitting`.
+7. Confirm the dialog shows fitting categories and variants.
+8. Create a `P1065` splice plate or `DEV_ANGLE_90_2LEG` angle bracket.
+9. Select the generated fitting and confirm catalog metadata appears in the property panel.
+10. Use FreeCAD Assembly for final placement or constraint experiments.
 
 ## Current roadmap
 
 Near-term priorities:
 
 - Keep Add Fitting focused on catalog object authoring.
+- Keep New Channel responsible for channel-side piercing authoring intent.
 - Keep schema guardrails passing before adding catalog breadth.
-- Improve fitting schema and metadata.
-- Define Assembly-facing mate-frame/reference contracts.
+- Improve object metadata expectations and smoke coverage where possible.
 - Improve BOM/export fidelity.
-- Normalize more catalog records.
-- Add more fitting families and variants.
+- Normalize more catalog records under schema guardrails.
+- Add more fitting families and variants only after data contracts remain stable.
 - Document placement as convenience-level, not solver-level.
 
 Non-goals for MVP:
