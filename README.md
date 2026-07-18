@@ -24,6 +24,7 @@ The current architecture and contribution rules are captured in:
 - [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) — catalog datastore structure, profile/fitting record expectations, generated-object metadata, and schema smoke references.
 - [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — development workflow, smoke-test discipline, commit discipline, and catalog expansion rules.
 - [`docs/assembly_reference_schema.md`](docs/assembly_reference_schema.md) — Assembly-facing reference geometry and mate-frame concepts.
+- [Testing policy](docs/TESTING.md)
 
 ## Schema smoke tests
 
