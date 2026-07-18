@@ -547,11 +547,271 @@ Current safe expectations:
 
 Downstream workflows should not infer behavior from viewer placement, object ordering, or undocumented properties.
 
-## Generated fitting objects
+## Generated fitting object metadata contract
 
-Generated fitting object metadata is intentionally separate from channel metadata.
+The Add Fitting command creates a `Part::Feature` from a fitting catalog record.
 
-Fitting objects should not redefine channel piercing state.
+A generated fitting object carries several kinds of metadata:
+
+| Category | Meaning |
+|---|---|
+| Catalog identity | Identifies the source fitting record and fitting family. |
+| Catalog-derived metadata | Copies descriptive or dimensional values from the fitting record. |
+| Instance authoring intent | Captures choices made while creating this particular fitting object. |
+| Placement metadata | Records the host profile and resulting FreeCAD placement state. |
+| Downstream reference metadata | Describes reference frames intended for future mating or assembly workflows. |
+
+The generated object is a specific authored instance.
+
+It does not replace or mutate its source fitting catalog record.
+
+### Expected generated properties
+
+| Property | FreeCAD type | Status | Category | Meaning |
+|---|---|---|---|---|
+| `UnistrutType` | `App::PropertyString` | Required | Catalog identity | Identifies the object as a generated fitting. Current value: `fitting`. |
+| `FittingId` | `App::PropertyString` | Required | Catalog identity | Stores the source fitting id. |
+| `FamilyId` | `App::PropertyString` | Catalog-dependent | Catalog-derived metadata | Stores the fitting family id. |
+| `FittingType` | `App::PropertyString` | Catalog-dependent | Catalog-derived metadata | Stores the fitting type. |
+| `Category` | `App::PropertyString` | Catalog-dependent | Catalog-derived metadata | Stores the catalog category. |
+| `DisplayGroup` | `App::PropertyString` | Catalog-dependent | Catalog-derived metadata | Stores the UI grouping label. |
+| `VariantLabel` | `App::PropertyString` | Catalog-dependent | Catalog-derived metadata | Stores the human-facing fitting variant label. |
+| `HardwarePreset` | `App::PropertyString` | Optional | Catalog-derived metadata | Stores a catalog hardware preset identifier when present. |
+| `HoleCount` | `App::PropertyInteger` | Optional | Catalog-derived metadata | Stores the fitting hole count when present. |
+| `HoleDiameterIn` | `App::PropertyFloat` | Optional / instance-selectable | Catalog-derived metadata and instance authoring intent | Stores the selected or default hole diameter in inches. |
+| `HoleDiameterOptionsIn` | `App::PropertyString` | Optional | Catalog-derived metadata | Stores available hole-diameter options as a comma-separated string. |
+| `HostProfile` | `App::PropertyString` | Required | Placement metadata | Stores the FreeCAD object name of the selected host profile, or an empty string when unplaced. |
+| `MateFrames` | `App::PropertyStringList` | Required but may be empty | Downstream reference metadata | Stores available mate-frame identifiers. |
+| `MateFrameMetadata` | `App::PropertyString` | Required | Downstream reference metadata | Stores serialized mate-frame records as JSON. |
+| `Placement` | Built-in FreeCAD property | Required | Placement metadata | Stores the generated fitting object's current position and orientation. |
+
+### `UnistrutType`
+
+`UnistrutType` identifies the broad generated object kind.
+
+For generated fitting objects, the current value is:
+
+    fitting
+
+Downstream tools may use this property to distinguish fittings from channel profiles and other workbench objects.
+
+### `FittingId`
+
+`FittingId` stores the source fitting id selected from the fitting catalog.
+
+It is the primary catalog identity for the generated fitting object.
+
+A fitting's placement, host profile, or selected hole diameter does not change its `FittingId`.
+
+### Catalog-derived descriptive properties
+
+The following properties copy descriptive values from the fitting record when available:
+
+    FamilyId
+    FittingType
+    Category
+    DisplayGroup
+    VariantLabel
+
+These values support:
+
+- object inspection
+- user-interface grouping
+- future BOM output
+- future filtering and reporting
+
+They do not independently control assembly behavior.
+
+### `HardwarePreset`
+
+`HardwarePreset` stores the fitting record's hardware preset identifier when present.
+
+It is currently catalog-derived metadata.
+
+It does not yet:
+
+- create fastener objects
+- validate hardware compatibility
+- calculate bolt engagement
+- constrain the fitting to a channel
+
+A future Fasteners integration may consume this property.
+
+### Hole metadata
+
+Generated fitting objects may include:
+
+    HoleCount
+    HoleDiameterIn
+    HoleDiameterOptionsIn
+
+`HoleCount` is copied from the fitting catalog when present.
+
+`HoleDiameterOptionsIn` stores available catalog options as a comma-separated string.
+
+`HoleDiameterIn` initially receives the catalog default when present. If the Add Fitting dialog provides a user-selected hole diameter, the selected value becomes the generated object's `HoleDiameterIn` value.
+
+Therefore, `HoleDiameterIn` may represent both:
+
+- catalog-derived default data
+- instance-level authoring intent
+
+Hole metadata does not currently generate detailed hole geometry or validate fastener selection unless the fitting builder explicitly implements that behavior.
+
+### `HostProfile`
+
+`HostProfile` stores the FreeCAD object name of the channel selected as the fitting's host.
+
+Example:
+
+    U_P4100
+
+If no valid host placement selection is used, `HostProfile` is stored as an empty string.
+
+An empty `HostProfile` means the fitting is currently unplaced with respect to a channel.
+
+`HostProfile` is placement metadata.
+
+It is not:
+
+- a persistent assembly constraint
+- a guaranteed object link
+- proof of compatibility
+- proof that the fitting remains geometrically coincident with the host after later edits
+
+The current property is a string reference, not an `App::PropertyLink`.
+
+### `Placement`
+
+The Add Fitting command assigns the fitting object's built-in FreeCAD `Placement`.
+
+Depending on the creation context, this placement may be derived from:
+
+- a selected channel
+- a selected face
+- a picked point
+- a nearest slot center
+- the fitting record's placement policy
+- the selected face orientation
+- an unplaced authoring offset
+
+The resulting `Placement` is current object state.
+
+It is not an Assembly constraint and will not automatically solve or update a mechanical relationship.
+
+### Placement catalog data
+
+Fitting catalog records may include placement-policy data such as:
+
+    supported_modes
+    allowed_face_classes
+    slot_policy
+
+The Add Fitting command currently uses this data to decide whether an initial selected placement is supported and how to select a placement point.
+
+These are catalog-record fields.
+
+They are not currently copied to dedicated generated-object properties.
+
+Downstream tools should not assume that every catalog placement field is persisted on the generated object.
+
+### `MateFrames`
+
+`MateFrames` stores the identifiers of mate-frame records declared by the fitting catalog entry.
+
+It is stored as an `App::PropertyStringList`.
+
+The list may validly be empty when the catalog fitting does not define mate frames.
+
+Mate-frame identifiers describe downstream reference intent.
+
+They are not active Assembly constraints.
+
+### `MateFrameMetadata`
+
+`MateFrameMetadata` stores the complete fitting `mate_frames` list serialized as JSON.
+
+It is stored as an `App::PropertyString`.
+
+This preserves the structured catalog metadata on the generated object without requiring a FreeCAD property for every field inside every frame.
+
+Future tooling may deserialize this property to obtain frame information such as:
+
+- frame id
+- origin
+- axis directions
+- orientation intent
+- fitting-specific reference semantics
+
+The serialized data remains reference metadata.
+
+It does not create or solve a mate.
+
+### Mate-frame boundary
+
+Mate frames describe where and how future workflows might reference a fitting.
+
+They are not:
+
+- Assembly constraints
+- automatic joints
+- coincidence guarantees
+- structural connections
+- fastener definitions
+- validation that two objects can actually be assembled
+
+A future Assembly integration may convert documented mate-frame intent into solver-specific objects.
+
+That conversion is outside the current Add Fitting command.
+
+### Add Fitting ownership boundary
+
+The Add Fitting command currently owns:
+
+- fitting selection
+- fitting shape creation
+- generated fitting metadata
+- initial placement when supported
+- unplaced authoring placement otherwise
+
+The Add Fitting command does not own:
+
+- persistent Assembly constraint solving
+- automatic fastener creation
+- structural verification
+- full catalog-perfect fitting geometry
+- automatic maintenance of fitting-to-channel relationships after later edits
+
+### Catalog truth vs instance state
+
+Generated fitting objects preserve several distinct concepts:
+
+| Question | Property |
+|---|---|
+| What catalog fitting did this object come from? | `FittingId` |
+| What family and category describe it? | `FamilyId`, `FittingType`, `Category`, `DisplayGroup`, `VariantLabel` |
+| What hole size was selected for this instance? | `HoleDiameterIn` |
+| What channel was used during initial placement? | `HostProfile` |
+| Where is the object currently located? | `Placement` |
+| What future reference frames does the fitting expose? | `MateFrames`, `MateFrameMetadata` |
+
+Do not collapse catalog identity, instance authoring intent, placement state, and mate-frame intent into one property.
+
+### Downstream expectations
+
+Downstream workflows may rely on documented generated-object properties only.
+
+Current safe expectations:
+
+- `UnistrutType` identifies a fitting object.
+- `FittingId` identifies the source fitting record.
+- catalog-derived descriptive metadata may support BOM and filtering workflows.
+- `HoleDiameterIn` records the selected or default generated-instance hole diameter.
+- `HostProfile` records the initial host object's name or an empty string.
+- `Placement` records current FreeCAD placement state.
+- `MateFrames` and `MateFrameMetadata` preserve future reference intent.
+
+Downstream workflows should not infer active constraints, fastener selection, structural validity, or persistent host relationships from these properties.
 
 ## Schema smoke contract
 
