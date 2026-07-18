@@ -11,13 +11,11 @@ Upgrade path:
 """
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Literal, Optional, Dict, Any
-from pathlib import Path
+from typing import Literal, Dict, Any
 from .holes import apply_hole_series, resolve_piercing_spec
 
 import FreeCAD as App
 import Part
-import json
 
 Mode = Literal["simple", "detailed"]
 
@@ -51,83 +49,6 @@ def _rect_profile_yz(w: float, h: float) -> Part.Face:
     ]
     wire = Part.Wire(Part.makePolygon(pts))
     return Part.Face(wire)
-
-
-_HOLE_SERIES_CACHE: Optional[Dict[str, Any]] = None
-
-def _data_dir() -> Path:
-    # UnistrutWB/core/profiles.py -> UnistrutWB/data/
-    here = Path(__file__).resolve()
-    return (here.parent.parent / "data").resolve()
-
-def _load_hole_series_map() -> Dict[str, Any]:
-    global _HOLE_SERIES_CACHE
-    if _HOLE_SERIES_CACHE is not None:
-        return _HOLE_SERIES_CACHE
-
-    p = _data_dir() / "mapping_hole_series.json"
-    if not p.exists():
-        _HOLE_SERIES_CACHE = {}
-        return _HOLE_SERIES_CACHE
-
-    with p.open("r", encoding="utf-8") as f:
-        _HOLE_SERIES_CACHE = json.load(f)
-    return _HOLE_SERIES_CACHE
-
-def _apply_slot_pattern_web(
-    solid: Part.Shape,
-    length_mm: float,
-    width_mm: float,
-    thickness_mm: float,
-    series_code: str,
-):
-    m = _load_hole_series_map()
-    hs = (m.get("hole_series") or {}).get(series_code) or {}
-    pat = hs.get("slot_pattern")
-    if not pat:
-        return solid
-
-    L = float(length_mm)
-    w = float(width_mm)
-    t = float(thickness_mm)
-
-    pitch = float(pat["pitch_mm"])
-    end_margin = float(pat.get("end_margin_mm", pitch / 2.0))
-    slot_len = float(pat["slot_length_mm"])
-    slot_w = float(pat["slot_width_mm"])
-
-    y_center = pat.get("y_center_mm", "CENTER")
-    y0 = float(y_center) if isinstance(y_center, (int, float)) else (w / 2.0)
-
-    z0 = float(pat.get("z_from_outer_bottom_mm", 0.0))
-
-    cut_depth = pat.get("cut_depth_mm", "THICKNESS")
-    dz = float(cut_depth) if isinstance(cut_depth, (int, float)) else t
-
-    # Slight pad so cutters reliably intersect faces
-    eps = 0.05  # mm
-
-    def make_slot_at(x_center: float) -> Part.Shape:
-        slot = Part.makeBox(slot_len, slot_w, dz + 2 * eps)
-        slot.Placement = App.Placement(
-            App.Vector(x_center - slot_len / 2.0, y0 - slot_w / 2.0, z0 - eps),
-            App.Rotation()
-        )
-        return slot
-
-    centers = []
-    x = end_margin
-    while x <= (L - end_margin + 1e-6):
-        centers.append(x)
-        x += pitch
-
-    if not centers:
-        return solid
-
-    cutters = [make_slot_at(xc) for xc in centers]
-    compound = Part.makeCompound(cutters)
-
-    return solid.cut(compound)
 
 def _compute_slot_centers_web(
     *,
@@ -163,26 +84,6 @@ def _compute_slot_centers_web(
         x += pitch
 
     return centers
-
-    L = float(length_mm)
-    w = float(width_mm)
-    t = float(thickness_mm)
-
-    pitch = float(pat["pitch_mm"])
-    end_margin = float(pat.get("end_margin_mm", pitch / 2.0))
-    slot_len = float(pat["slot_length_mm"])
-    slot_w = float(pat["slot_width_mm"])
-
-    y_center = pat.get("y_center_mm", "CENTER")
-    y0 = float(y_center) if isinstance(y_center, (int, float)) else (w / 2.0)
-
-    z0 = float(pat.get("z_from_outer_bottom_mm", 0.0))
-
-    cut_depth = pat.get("cut_depth_mm", "THICKNESS")
-    dz = float(cut_depth) if isinstance(cut_depth, (int, float)) else t
-
-    # Slight pad so cutters reliably intersect faces (OCC tolerance hygiene)
-    eps = 0.05  # mm
 
     def make_slot_at(x_center: float) -> Part.Shape:
         slot = Part.makeBox(slot_len, slot_w, dz + 2 * eps)
@@ -295,9 +196,6 @@ def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simpl
     )
 
     return solid
-
-
-
 
 def build_u_channel_lipped(
     width_mm: float,
