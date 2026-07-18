@@ -364,85 +364,188 @@ Fitting records should not define channel-side piercing intent.
 
 Add Fitting should consume fitting records and, in future workflows, may consume channel metadata such as `SlotCenters`.
 
-## Generated FreeCAD channel objects
+## Generated channel object metadata contract
 
-The New Channel command currently creates a `Part::Feature` with shape and metadata.
+The New Channel command creates a `Part::Feature` from a profile catalog record plus instance-level authoring choices.
 
-Known generated properties may include:
+The generated object is not the catalog record itself. It is a specific authored instance created from catalog data.
 
-    UnistrutType
-    ProfileId
-    Finish
-    Mode
-    PiercingPreset
-    HoleClearanceIn
-    SlotCenters
+Generated channel metadata falls into five broad categories:
 
-## UnistrutType
+| Category | Meaning |
+|---|---|
+| Catalog identity | Identifies the source catalog record. |
+| Instance authoring intent | Captures choices made while creating this object. |
+| Derived metadata | Computed from catalog data and/or instance intent. |
+| BOM/cut-list metadata | Supports quantity, finish, length, and fabrication summaries. |
+| Downstream reference metadata | Supports future tools without acting as a constraint or solver. |
 
-Identifies the generated object type.
+### Expected generated properties
 
-For channel profiles, this should be:
+| Property | FreeCAD type | Category | Meaning |
+|---|---|---|---|
+| `UnistrutType` | `App::PropertyString` | Catalog identity | Identifies the object as a generated channel profile. Current value: `profile`. |
+| `ProfileId` | `App::PropertyString` | Catalog identity | Stores the source profile id from `profiles.json`. |
+| `Length` | `App::PropertyLength` | BOM/cut-list metadata | Stores the authored channel length. |
+| `Finish` | `App::PropertyString` | BOM/cut-list metadata | Stores the selected finish code. |
+| `Mode` | `App::PropertyString` | Instance authoring intent | Stores the channel-generation mode selected at creation time. |
+| `PiercingPreset` | `App::PropertyString` | Instance authoring intent | Stores the selected piercing behavior for this instance. |
+| `HoleClearanceIn` | `App::PropertyString` | Instance authoring intent | Stores user-entered hole or clearance metadata in inches. |
+| `SlotCenters` | `App::PropertyVectorList` | Derived metadata / downstream reference metadata | Stores computed slot-center vectors for the active piercing pattern. |
+
+### `UnistrutType`
+
+`UnistrutType` identifies the broad generated object kind.
+
+For generated channel objects, the current value is:
 
     profile
 
-## ProfileId
+Downstream tools may use this property to distinguish channel profiles from fittings and other workbench objects.
 
-Stores the source catalog profile id.
+### `ProfileId`
 
-Example:
+`ProfileId` stores the source profile id from `profiles.json`.
+
+Examples:
 
     P1000
+    P1100
+    P4000
+    P4100
 
-This should remain the catalog id even when the generated object uses an instance-level piercing override.
+`ProfileId` remains the catalog identity even when the generated object uses an instance-level piercing override.
 
-## Finish
+For example, a generated `P1000` object may use `T` piercing while still retaining:
 
-Stores finish code metadata.
+    ProfileId = P1000
+
+The source profile identity and the authored piercing intent are separate concepts.
+
+### `Length`
+
+`Length` stores the channel length selected when the object is created.
+
+It is currently stored as an `App::PropertyLength` and is expected to be the canonical generated-object length value for future BOM and cut-list workflows.
+
+### `Finish`
+
+`Finish` stores the selected finish code.
 
 Example:
 
     EG
 
-## Mode
+Finish is currently metadata and is expected to be consumed by future BOM and cut-list workflows.
 
-Stores the channel mode used at creation time.
+### `Mode`
 
-## PiercingPreset
+`Mode` stores the channel-generation mode selected in the New Channel command.
 
-Stores the selected piercing preset from the New Channel UI.
+Current values include:
 
-Current possible values:
+    simple
+    detailed
+
+This is instance authoring metadata.
+
+It is not assembly placement intent.
+
+### `PiercingPreset`
+
+`PiercingPreset` stores the piercing option selected when the channel is generated.
+
+Current values:
 
     __profile__
     __plain__
     T
 
-Meaning:
+Meanings:
 
-    __profile__   use profile default
-    __plain__     force plain/solid for this instance
-    T             force T slotted pattern for this instance
+| Value | Meaning |
+|---|---|
+| `__profile__` | Use the source profile's catalog-default piercing state. |
+| `__plain__` | Force plain/solid behavior for this generated instance. |
+| `T` | Force T-slotted behavior for this generated instance. |
 
-## HoleClearanceIn
+`PiercingPreset` describes instance authoring intent.
 
-Stores hole/clearance metadata entered at channel creation time.
+It does not mutate the source profile record.
 
-This is currently metadata only.
+### `HoleClearanceIn`
 
-It does not yet drive fitting validation, fastener selection, or slot geometry.
+`HoleClearanceIn` stores hole or clearance metadata entered during channel creation.
 
-## SlotCenters
+It is currently stored as string metadata.
 
-List of FreeCAD vectors identifying computed slot center locations.
+It does not yet drive:
+
+- slot geometry
+- fitting validation
+- fastener selection
+- assembly constraints
+
+Future fitting, fastener, or BOM workflows may consume it once those workflows are deliberately designed.
+
+### `SlotCenters`
+
+`SlotCenters` stores computed FreeCAD vectors for the active piercing pattern.
+
+Slot centers are derived from:
+
+- the active piercing series
+- the hole-series mapping
+- the generated channel length
+- the channel geometry
 
 Rules:
 
-- Generated from the active piercing series.
-- Empty for plain/solid channels.
-- Empty when no usable slot pattern exists.
-- Used as metadata for future workflows.
-- Not an assembly constraint system.
+- Plain or solid channels validly have an empty list.
+- Channels without a usable slot pattern validly have an empty list.
+- The values are generated metadata, not separately authored inputs.
+- Future tools may consume them as reference locations.
+
+`SlotCenters` is not:
+
+- an assembly constraint system
+- a mate
+- a final placement rule
+- structural validation
+- proof that a fitting or fastener is valid
+
+### Catalog truth vs instance intent
+
+Generated channel objects preserve both catalog identity and instance authoring intent.
+
+These answer different questions:
+
+| Question | Property |
+|---|---|
+| What catalog profile did this object come from? | `ProfileId` |
+| What length and finish were authored for this object? | `Length`, `Finish` |
+| What generation behavior did the user select? | `Mode`, `PiercingPreset`, `HoleClearanceIn` |
+| What reference data was derived from those choices? | `SlotCenters` |
+
+Do not collapse these concepts into one property.
+
+Catalog records describe defaults.
+
+Generated object properties describe a specific authored instance.
+
+### Downstream expectations
+
+Downstream workflows may rely on documented properties only.
+
+Current safe expectations:
+
+- `UnistrutType` identifies the generated object kind.
+- `ProfileId` identifies the source profile.
+- `Length` and `Finish` are canonical generated-object BOM inputs.
+- `Mode`, `PiercingPreset`, and `HoleClearanceIn` preserve authoring intent.
+- `SlotCenters` provides derived reference locations.
+
+Downstream workflows should not infer behavior from viewer placement, object ordering, or undocumented properties.
 
 ## Generated fitting objects
 
