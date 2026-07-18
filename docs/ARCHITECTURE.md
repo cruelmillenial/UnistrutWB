@@ -56,6 +56,53 @@ Those responsibilities are expected to remain outside the workbench or be delega
           v
          Part::Feature object
 
+## Generated-object metadata boundary
+
+Catalog records are source inputs used by UnistrutWB commands to create geometry and metadata-bearing FreeCAD objects.
+
+The catalog files remain the source of product defaults and reusable definitions:
+
+- `profiles.json` defines channel profile records.
+- `fittings.json` defines fitting records.
+- mapping files define reusable supporting data such as piercing patterns.
+
+Generated FreeCAD object properties are runtime document metadata for a specific authored instance.
+
+They may preserve:
+
+- source catalog identity
+- user-selected authoring intent
+- catalog-derived descriptive values
+- derived reference metadata
+- current placement state
+- future workflow reference intent
+
+Catalog records and generated object properties are related but are not interchangeable.
+
+A generated object may preserve its source catalog identity while also recording instance choices that differ from the catalog default.
+
+Downstream workflows should rely only on generated-object properties that are explicitly documented in `docs/DATA_MODEL.md`.
+
+They should not infer behavior from:
+
+- object names alone
+- document ordering
+- viewer offsets
+- undocumented properties
+- current visual coincidence between objects
+
+Generated metadata may support future BOM, placement, inspection, fastener, or assembly workflows.
+
+It does not itself create:
+
+- persistent Assembly constraints
+- solved mates
+- structural validation
+- automatic fastener selection
+- guaranteed mechanical compatibility
+
+UnistrutWB creates catalog-aware authoring objects and reference metadata. It is not an Assembly solver.
+
 ## New Channel command
 
 The New Channel command creates channel profile objects from `profiles.json`.
