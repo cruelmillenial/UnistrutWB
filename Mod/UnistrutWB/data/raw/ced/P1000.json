@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "source": {
+    "id": "CED_C_P1000",
+    "file": "C_p1000.pdf",
+    "sha256": "9f1e008561ac78c81f129212ac7414d4d84f8a19a77800381a4203484062a639",
+    "title": "P1000 & P1001 Channels for 1-5/8 in (41 mm) Width Series Channel",
+    "pages_used": [
+      1,
+      2
+    ]
+  },
+  "extraction": {
+    "method": "manual transcription from embedded PDF text and dimension drawing",
+    "status": "reviewed",
+    "records": [
+      {
+        "id": "P1000",
+        "page": 1,
+        "dimensions": {
+          "width": {
+            "source_text": "1 5/8 in / 41.3 mm",
+            "in": 1.625,
+            "mm": 41.3
+          },
+          "height": {
+            "source_text": "1 5/8 in / 41.3 mm",
+            "in": 1.625,
+            "mm": 41.3
+          },
+          "lip_return": {
+            "source_text": "3/8 in / 9.5 mm",
+            "in": 0.375,
+            "mm": 9.5
+          },
+          "thickness": {
+            "source_text": ".105 in / 2.7 mm",
+            "in": 0.105,
+            "mm": 2.7
+          }
+        },
+        "weight": {
+          "source_text": "1.90 lb/ft; 2.8 kg/m",
+          "lb_per_ft": 1.9,
+          "kg_per_m": 2.8
+        },
+        "allowable_moment": {
+          "source_text": "5,080 in-lb; 570 N·m",
+          "in_lb": 5080,
+          "N_m": 570
+        },
+        "finishes": [
+          "PL",
+          "GR",
+          "HG",
+          "PG"
+        ],
+        "standard_lengths": {
+          "source_text": "10 ft (3.05 m), 20 ft (6.10 m)",
+          "ft": [
+            10.0,
+            20.0
+          ],
+          "m": [
+            3.05,
+            6.1
+          ]
+        },
+        "material_notes": [
+          "Channels are cold formed from low-carbon strip steel.",
+          "Plain 12 gauge steel is listed as ASTM A570 Grade 33.",
+          "Pre-galvanized 12 gauge steel is listed as ASTM A653 Grade 33."
+        ],
+        "deferred": [
+          "pierced variants",
+          "beam-load chart digitization",
+          "section dimensions not clearly labeled in extracted text"
+        ]
+      }
+    ]
+  }
+}
