@@ -105,12 +105,15 @@
       "gauge": 12,
       "geometry": {
         "width": {
+          "in": 1.625,
           "mm": 41.3
         },
         "height": {
+          "in": 1.625,
           "mm": 41.3
         },
         "thickness": {
+          "in": 0.105,
           "mm": 2.7
         },
         "piercing": {
@@ -121,7 +124,83 @@
         "profile_spec": {
           "kind": "u_channel_lipped",
           "t": {
+            "in": 0.105,
             "mm": 2.7
+          },
+          "lip_return": {
+            "in": 0.375,
+            "mm": 9.5
+          }
+        }
+      },
+      "mass": {
+        "lb_per_ft": 1.9,
+        "kg_per_m": 2.8
+      },
+      "finishes": [
+        "PL",
+        "GR",
+        "HG",
+        "PG"
+      ],
+      "standard_lengths": {
+        "ft": [
+          10.0,
+          20.0
+        ],
+        "m": [
+          3.05,
+          6.1
+        ]
+      },
+      "properties": {
+        "section": {
+          "allowable_moment": {
+            "in_lb": 5080,
+            "N_m": 570
+          }
+        }
+      },
+      "provenance": {
+        "source_id": "CED_C_P1000",
+        "source_file": "C_p1000.pdf",
+        "source_sha256": "9f1e008561ac78c81f129212ac7414d4d84f8a19a77800381a4203484062a639",
+        "source_pages": [
+          1,
+          2
+        ],
+        "table": "P1000/P1001 channel properties",
+        "notes": [
+          "P1000 values transcribed from the CED-hosted Unistrut channel sheet.",
+          "Metric dimensions and standard lengths retain the source's displayed rounding.",
+          "The source lists nominal 12-gauge thickness as 0.105 in (2.7 mm).",
+          "Pierced-channel geometry is deferred to the pierced-sections source."
+        ]
+      }
+    },
+    {
+      "id": "P1100",
+      "family": "1-5/8 x 1-5/8",
+      "gauge": 14,
+      "geometry": {
+        "width": {
+          "mm": 41.3
+        },
+        "height": {
+          "mm": 41.3
+        },
+        "thickness": {
+          "mm": 1.9
+        },
+        "piercing": {
+          "series": null,
+          "template": null,
+          "overrides": {}
+        },
+        "profile_spec": {
+          "kind": "u_channel_lipped",
+          "t": {
+            "mm": 1.9
           },
           "lip_return": {
             "mm": 9.5
@@ -147,31 +226,6 @@
           6.096
         ]
       }
-    },
-    {
-  "id": "P1100",
-  "family": "1-5/8 x 1-5/8",
-  "gauge": 14,
-  "geometry": {
-    "width": { "mm": 41.3 },
-    "height": { "mm": 41.3 },
-    "thickness": { "mm": 1.9 },
-    "piercing": {
-      "series": null,
-      "template": null,
-      "overrides": {}
-    },
-    "profile_spec": {
-      "kind": "u_channel_lipped",
-      "t": { "mm": 1.9 },
-      "lip_return": { "mm": 9.5 }
     }
-  },
-  "finishes": ["EG", "HG", "GR", "PL", "PG", "DF", "ZD"],
-  "standard_lengths": {
-    "ft": [10.0, 20.0],
-    "m": [3.048, 6.096]
-  }
-}
   ]
 }
