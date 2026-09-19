@@ -27,7 +27,16 @@
           },
           "lip_return": {
             "mm": 9.5
-          }
+          },
+          "mouth_opening": {
+            "in": 0.875,
+            "mm": 22.225
+          },
+          "lip_tip_gap": {
+            "in": 0.25,
+            "mm": 6.35
+          },
+          "lip_model": "symmetric_semicircular_lip"
         }
       },
       "finishes": [
@@ -41,8 +50,8 @@
       ],
       "standard_lengths": {
         "ft": [
-          10.0,
-          20.0
+          10,
+          20
         ],
         "m": [
           3.048,
@@ -90,8 +99,8 @@
       ],
       "standard_lengths": {
         "ft": [
-          10.0,
-          20.0
+          10,
+          20
         ],
         "m": [
           3.048,
@@ -130,7 +139,16 @@
           "lip_return": {
             "in": 0.375,
             "mm": 9.5
-          }
+          },
+          "mouth_opening": {
+            "in": 0.875,
+            "mm": 22.225
+          },
+          "lip_tip_gap": {
+            "in": 0.28125,
+            "mm": 7.14375
+          },
+          "lip_model": "symmetric_semicircular_lip"
         }
       },
       "mass": {
@@ -145,8 +163,8 @@
       ],
       "standard_lengths": {
         "ft": [
-          10.0,
-          20.0
+          10,
+          20
         ],
         "m": [
           3.05,
@@ -218,8 +236,8 @@
       ],
       "standard_lengths": {
         "ft": [
-          10.0,
-          20.0
+          10,
+          20
         ],
         "m": [
           3.048,
