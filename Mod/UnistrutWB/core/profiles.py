@@ -216,20 +216,17 @@ def build_u_channel_lipped(
     """
     Lipped U-channel, extruded along +X.
 
-    When mouth_opening_mm and lip_tip_gap_mm are present, build a continuous
-    2D sheet-metal section from line segments plus tangent arcs. The lip radius
-    is still the ETL model hypothesis:
+    Rich-geometry path:
+    - derive lip curl radius from mouth opening and tip gap
+    - construct one closed 2D material boundary in the YZ plane
+    - make a single Part.Face
+    - extrude that face along +X
 
-        side_projection = (width - mouth_opening) / 2
-        tip_projection = (mouth_opening - lip_tip_gap) / 2
-        r_mid = tip_projection / 2
+    The lip radius remains an explicit modeling hypothesis derived from the
+    ETL contract, not manufacturer-specified bend-radius data.
 
-    The section is generated from a midline path and offset by +/- t/2 to make
-    a continuous wall-thickness envelope. This avoids free-standing annuli and
-    keeps the lip connected to the sidewall.
-
-    Profiles without the richer mouth/gap inputs retain the legacy rectangular
-    return fallback.
+    Profiles without mouth/tip dimensions keep the legacy rectangular-return
+    fallback so partially upgraded catalog entries remain usable.
     """
     w = float(width_mm)
     h = float(depth_mm)
@@ -237,104 +234,157 @@ def build_u_channel_lipped(
     lip = max(float(lip_mm), 0.0)
     L = float(length_mm)
 
-    if lip <= 0:
+    def legacy_rectangular() -> Part.Shape:
         outer = _rect_profile_yz(w, h)
         inner = _rect_profile_yz(max(w - 2 * t, 0.1), max(h - t, 0.1))
         inner.translate(App.Vector(0, t, t))
-        return outer.cut(inner).extrude(App.Vector(L, 0, 0))
+        face = outer.cut(inner)
+        solid = face.extrude(App.Vector(L, 0, 0))
 
-    if mouth_opening_mm is not None and lip_tip_gap_mm is not None:
-        opening = float(mouth_opening_mm)
-        gap = float(lip_tip_gap_mm)
-        if not (0.0 < gap < opening < w):
-            raise ValueError(
-                "invalid lipped-channel geometry: require 0 < lip_tip_gap < "
-                "mouth_opening < width"
-            )
+        if lip <= 0:
+            return solid
 
-        side_projection = (w - opening) / 2.0
-        tip_projection = (opening - gap) / 2.0
-        r_mid = tip_projection / 2.0
-        if r_mid <= t / 2.0:
-            raise ValueError(
-                "derived lip radius is too small for requested material thickness"
-            )
+        max_lip = max((w - 2 * t) / 2.0 - 0.1, 0.0)
+        lip_eff = min(lip, max_lip)
 
-        # Midline geometry in YZ plane.
-        y_left = t / 2.0
-        y_right = w - t / 2.0
-        z_bottom = t / 2.0
-        z_top = h - t / 2.0
-
-        # Horizontal projection from each wall to the nominal mouth datum.
-        shelf = max(side_projection - t / 2.0, 0.0)
-
-        # Curl center locations. Each lip curls inward and downward through 180 deg.
-        c_left_y = y_left + shelf + r_mid
-        c_right_y = y_right - shelf - r_mid
-        c_z = z_top - r_mid
-
-        # Centerline path: left lip tip -> left curl -> left wall -> bottom ->
-        # right wall -> right curl -> right lip tip.
-        p0 = App.Vector(0, c_left_y + r_mid, c_z)  # left tip
-        p1 = App.Vector(0, c_left_y, c_z + r_mid)  # left curl top
-        p2 = App.Vector(0, y_left, z_top)           # left wall top
-        p3 = App.Vector(0, y_left, z_bottom)
-        p4 = App.Vector(0, y_right, z_bottom)
-        p5 = App.Vector(0, y_right, z_top)          # right wall top
-        p6 = App.Vector(0, c_right_y, c_z + r_mid) # right curl top
-        p7 = App.Vector(0, c_right_y - r_mid, c_z) # right tip
-
-        # Build centerline as ordered edges.
-        edges = [
-            Part.Arc(p0, App.Vector(0, c_left_y + r_mid / 1.41421356237, c_z + r_mid / 1.41421356237), p1).toShape(),
-            Part.makeLine(p1, p2),
-            Part.makeLine(p2, p3),
-            Part.makeLine(p3, p4),
-            Part.makeLine(p4, p5),
-            Part.makeLine(p5, p6),
-            Part.Arc(p6, App.Vector(0, c_right_y - r_mid / 1.41421356237, c_z + r_mid / 1.41421356237), p7).toShape(),
-        ]
-        center_wire = Part.Wire(edges)
-
-        # Sweep a rectangular section of thickness t along the centerline.
-        # FreeCAD's pipe keeps the material continuous through the bends and
-        # gives us a single connected sheet-metal solid.
-        seed = Part.makePlane(
-            t,
-            L,
-            App.Vector(0, p0.y - t / 2.0, p0.z - L / 2.0),
-            App.Vector(1, 0, 0),
+        left = Part.makeBox(L, lip_eff, t)
+        left.Placement = App.Placement(
+            App.Vector(0, t, h - t),
+            App.Rotation(),
         )
-        # The generic pipe API is sensitive to profile orientation; if this
-        # fails in a given OCC build, raise clearly rather than returning
-        # disconnected geometry.
-        try:
-            section = center_wire.makePipeShell([Part.Wire(seed.Edges)], True, False)
-        except Exception as exc:
-            raise RuntimeError("continuous lipped-channel sweep failed") from exc
+        right = Part.makeBox(L, lip_eff, t)
+        right.Placement = App.Placement(
+            App.Vector(0, w - t - lip_eff, h - t),
+            App.Rotation(),
+        )
+        return solid.fuse(left).fuse(right)
 
-        return section
+    if mouth_opening_mm is None or lip_tip_gap_mm is None:
+        return legacy_rectangular()
 
-    # Legacy fallback: outer-minus-inner U plus rectangular top returns.
-    outer = _rect_profile_yz(w, h)
-    inner = _rect_profile_yz(max(w - 2 * t, 0.1), max(h - t, 0.1))
-    inner.translate(App.Vector(0, t, t))
-    face = outer.cut(inner)
+    opening = float(mouth_opening_mm)
+    gap = float(lip_tip_gap_mm)
+    if not (0.0 < gap < opening < w):
+        raise ValueError(
+            "invalid lipped-channel geometry: require 0 < lip_tip_gap < "
+            "mouth_opening < width"
+        )
+
+    side_projection = (w - opening) / 2.0
+    tip_projection = (opening - gap) / 2.0
+    r_mid = tip_projection / 2.0
+
+    if r_mid <= t / 2.0:
+        raise ValueError(
+            "derived lip radius is too small for requested material thickness"
+        )
+
+    r_in = r_mid - t / 2.0
+    r_out = r_mid + t / 2.0
+
+    # Outer material boundary follows the overall envelope.
+    y_lo = 0.0
+    y_hi = w
+    z_lo = 0.0
+    z_hi = h
+
+    # Approximate tangent locations for the curled return, symmetric about the
+    # channel centerline. The mouth datum sets the curl shoulder; the tip-gap
+    # datum sets the inner-most lip tips.
+    y_left_mouth = side_projection
+    y_right_mouth = w - side_projection
+    y_left_tip_mid = (w - gap) / 2.0
+    y_right_tip_mid = (w + gap) / 2.0
+
+    # Curl center positions are derived so the centerline arc spans 180 deg
+    # from the top shoulder to the inward/downward tip.
+    c_left_y = y_left_mouth + r_mid
+    c_right_y = y_right_mouth - r_mid
+    c_z = z_hi - r_mid
+
+    # Build the boundary explicitly. Start at lower-left outer corner and walk
+    # counter-clockwise around the material, including outer curl surfaces,
+    # then return along the inner surfaces.
+    edges = []
+
+    def line(y1, z1, y2, z2):
+        edges.append(
+            Part.makeLine(
+                App.Vector(0, y1, z1),
+                App.Vector(0, y2, z2),
+            )
+        )
+
+    def arc3(y1, z1, ym, zm, y2, z2):
+        edges.append(
+            Part.Arc(
+                App.Vector(0, y1, z1),
+                App.Vector(0, ym, zm),
+                App.Vector(0, y2, z2),
+            ).toShape()
+        )
+
+    # ---- outer boundary
+    line(y_lo, z_lo, y_hi, z_lo)
+    line(y_hi, z_lo, y_hi, z_hi)
+    line(y_hi, z_hi, c_right_y, z_hi)
+
+    # Right outer semicircle: top shoulder -> inward/downward outer tip.
+    arc3(
+        c_right_y, z_hi,
+        c_right_y - r_out / 1.41421356237, c_z + r_out / 1.41421356237,
+        c_right_y - r_out, c_z,
+    )
+
+    # Bridge outer tip to inner tip at the free edge.
+    line(c_right_y - r_out, c_z, c_right_y - r_in, c_z)
+
+    # Right inner semicircle back to the inner shoulder.
+    arc3(
+        c_right_y - r_in, c_z,
+        c_right_y - r_in / 1.41421356237, c_z + r_in / 1.41421356237,
+        c_right_y, c_z + r_in,
+    )
+
+    # Inner right wall down to inside-bottom.
+    line(c_right_y, c_z + r_in, w - t, z_hi - t)
+    line(w - t, z_hi - t, w - t, t)
+    line(w - t, t, t, t)
+    line(t, t, t, z_hi - t)
+
+    # Inner left shoulder to left inner curl.
+    line(t, z_hi - t, c_left_y, c_z + r_in)
+
+    # Left inner semicircle: inner shoulder -> inward/downward tip.
+    arc3(
+        c_left_y, c_z + r_in,
+        c_left_y + r_in / 1.41421356237, c_z + r_in / 1.41421356237,
+        c_left_y + r_in, c_z,
+    )
+
+    # Bridge inner tip to outer tip at free edge.
+    line(c_left_y + r_in, c_z, c_left_y + r_out, c_z)
+
+    # Left outer semicircle back to outer top shoulder.
+    arc3(
+        c_left_y + r_out, c_z,
+        c_left_y + r_out / 1.41421356237, c_z + r_out / 1.41421356237,
+        c_left_y, z_hi,
+    )
+
+    line(c_left_y, z_hi, y_lo, z_hi)
+    line(y_lo, z_hi, y_lo, z_lo)
+
+    wire = Part.Wire(edges)
+    if not wire.isClosed():
+        raise RuntimeError("lipped-channel cross-section wire is not closed")
+
+    face = Part.Face(wire)
+    if face.isNull() or not face.isValid():
+        raise RuntimeError("lipped-channel cross-section face is invalid")
+
     solid = face.extrude(App.Vector(L, 0, 0))
-
-    max_lip = max((w - 2 * t) / 2.0 - 0.1, 0.0)
-    lip = min(lip, max_lip)
-
-    left = Part.makeBox(L, lip, t)
-    left.Placement = App.Placement(
-        App.Vector(0, t, h - t),
-        App.Rotation(),
-    )
-    right = Part.makeBox(L, lip, t)
-    right.Placement = App.Placement(
-        App.Vector(0, w - t - lip, h - t),
-        App.Rotation(),
-    )
-    return solid.fuse(left).fuse(right)
+    if solid.isNull() or not solid.isValid():
+        raise RuntimeError("lipped-channel extrusion produced invalid solid")
+    return solid
 
