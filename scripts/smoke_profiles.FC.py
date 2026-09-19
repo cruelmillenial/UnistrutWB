@@ -38,3 +38,37 @@ legacy = {
 }
 legacy_shape = profiles.build_channel(legacy, 1000.0, mode="simple")
 print("legacy fallback valid:", legacy_shape.isValid())
+
+print("\nSECTION VALIDATION")
+targets = {
+    "P1000": {
+        "area_in2": 0.555,
+        "centroid_bottom_in": 0.710,
+        "centroid_top_in": 0.915,
+    },
+    "P4100": {
+        "area_in2": 0.290,
+        "centroid_bottom_in": 0.333,
+        "centroid_top_in": 0.480,
+    },
+}
+
+MM_PER_IN = 25.4
+MM2_PER_IN2 = MM_PER_IN ** 2
+
+for profile_id, target in targets.items():
+    profile = cat.get_profile(profile_id)
+    shape = profiles.build_channel(profile, 1.0, mode="simple")
+    area_mm2 = shape.Volume
+    area_in2 = area_mm2 / MM2_PER_IN2
+    centroid_z_mm = shape.CenterOfMass.z
+    centroid_bottom_in = centroid_z_mm / MM_PER_IN
+    height_mm = float(profile["geometry"]["height"]["mm"])
+    centroid_top_in = (height_mm - centroid_z_mm) / MM_PER_IN
+    bb_h = shape.BoundBox.ZLength
+    print(profile_id)
+    print("  area_in2:", area_in2, "target:", target["area_in2"])
+    print("  area_error_pct:", 100.0 * (area_in2 - target["area_in2"]) / target["area_in2"])
+    print("  centroid_bottom_in:", centroid_bottom_in, "target:", target["centroid_bottom_in"])
+    print("  centroid_top_in:", centroid_top_in, "target:", target["centroid_top_in"])
+    print("  nominal_height_mm:", height_mm, "bb_height_mm:", bb_h, "delta_mm:", bb_h - height_mm)
