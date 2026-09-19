@@ -216,16 +216,20 @@ def build_u_channel_lipped(
     """
     Lipped U-channel, extruded along +X.
 
-    If mouth_opening_mm and lip_tip_gap_mm are supplied, derive the curled
-    lip geometry using the ETL contract's symmetric-semicircular hypothesis:
+    When mouth_opening_mm and lip_tip_gap_mm are present, build a continuous
+    2D sheet-metal section from line segments plus tangent arcs. The lip radius
+    is still the ETL model hypothesis:
 
         side_projection = (width - mouth_opening) / 2
         tip_projection = (mouth_opening - lip_tip_gap) / 2
-        nominal_radius = tip_projection / 2
+        r_mid = tip_projection / 2
 
-    The derived radius is a modeling hypothesis, not manufacturer-specified
-    bend-radius data. Profiles lacking the richer geometry inputs retain the
-    legacy rectangular-return fallback.
+    The section is generated from a midline path and offset by +/- t/2 to make
+    a continuous wall-thickness envelope. This avoids free-standing annuli and
+    keeps the lip connected to the sidewall.
+
+    Profiles without the richer mouth/gap inputs retain the legacy rectangular
+    return fallback.
     """
     w = float(width_mm)
     h = float(depth_mm)
@@ -233,23 +237,15 @@ def build_u_channel_lipped(
     lip = max(float(lip_mm), 0.0)
     L = float(length_mm)
 
-    # Base channel: outer minus inner cavity (open top).
-    outer = _rect_profile_yz(w, h)
-    inner = _rect_profile_yz(max(w - 2 * t, 0.1), max(h - t, 0.1))
-    inner.translate(App.Vector(0, t, t))
-    face = outer.cut(inner)
-    solid = face.extrude(App.Vector(L, 0, 0))
-
     if lip <= 0:
-        return solid
+        outer = _rect_profile_yz(w, h)
+        inner = _rect_profile_yz(max(w - 2 * t, 0.1), max(h - t, 0.1))
+        inner.translate(App.Vector(0, t, t))
+        return outer.cut(inner).extrude(App.Vector(L, 0, 0))
 
-    # Rich geometry path: use the source-backed mouth/tip dimensions to
-    # derive a rounded return. We model each curled lip as a half-annulus
-    # extruded along X and fuse it to a short straight shelf from the wall.
     if mouth_opening_mm is not None and lip_tip_gap_mm is not None:
         opening = float(mouth_opening_mm)
         gap = float(lip_tip_gap_mm)
-
         if not (0.0 < gap < opening < w):
             raise ValueError(
                 "invalid lipped-channel geometry: require 0 < lip_tip_gap < "
@@ -259,66 +255,74 @@ def build_u_channel_lipped(
         side_projection = (w - opening) / 2.0
         tip_projection = (opening - gap) / 2.0
         r_mid = tip_projection / 2.0
-
         if r_mid <= t / 2.0:
             raise ValueError(
                 "derived lip radius is too small for requested material thickness"
             )
 
-        # Straight shelf spans from the inside wall to the nominal mouth datum.
-        shelf = max(side_projection - t, 0.0)
-        if shelf > 0.0:
-            left_shelf = Part.makeBox(L, shelf, t)
-            left_shelf.Placement = App.Placement(
-                App.Vector(0, t, h - t),
-                App.Rotation(),
-            )
-            right_shelf = Part.makeBox(L, shelf, t)
-            right_shelf.Placement = App.Placement(
-                App.Vector(0, w - t - shelf, h - t),
-                App.Rotation(),
-            )
-            solid = solid.fuse(left_shelf).fuse(right_shelf)
+        # Midline geometry in YZ plane.
+        y_left = t / 2.0
+        y_right = w - t / 2.0
+        z_bottom = t / 2.0
+        z_top = h - t / 2.0
 
-        # Build each curl as a half-annulus in the YZ plane, then extrude.
-        # Midline radius follows the ETL hypothesis; inner/outer radii enforce
-        # nominal sheet thickness around that midline.
-        r_in = r_mid - t / 2.0
-        r_out = r_mid + t / 2.0
-        zc = h - t - r_mid
+        # Horizontal projection from each wall to the nominal mouth datum.
+        shelf = max(side_projection - t / 2.0, 0.0)
 
-        def half_annulus(center_y: float, left_side: bool) -> Part.Shape:
-            outer_disk = Part.makeCylinder(
-                r_out, L, App.Vector(0, center_y, zc), App.Vector(1, 0, 0)
-            )
-            inner_disk = Part.makeCylinder(
-                r_in, L, App.Vector(0, center_y, zc), App.Vector(1, 0, 0)
-            )
-            ring = outer_disk.cut(inner_disk)
+        # Curl center locations. Each lip curls inward and downward through 180 deg.
+        c_left_y = y_left + shelf + r_mid
+        c_right_y = y_right - shelf - r_mid
+        c_z = z_top - r_mid
 
-            if left_side:
-                clip = Part.makeBox(
-                    L,
-                    r_out + t,
-                    2.0 * r_out + 2.0 * t,
-                    App.Vector(0, center_y, zc - r_out - t),
-                )
-            else:
-                clip = Part.makeBox(
-                    L,
-                    r_out + t,
-                    2.0 * r_out + 2.0 * t,
-                    App.Vector(0, center_y - r_out - t, zc - r_out - t),
-                )
-            return ring.common(clip)
+        # Centerline path: left lip tip -> left curl -> left wall -> bottom ->
+        # right wall -> right curl -> right lip tip.
+        p0 = App.Vector(0, c_left_y + r_mid, c_z)  # left tip
+        p1 = App.Vector(0, c_left_y, c_z + r_mid)  # left curl top
+        p2 = App.Vector(0, y_left, z_top)           # left wall top
+        p3 = App.Vector(0, y_left, z_bottom)
+        p4 = App.Vector(0, y_right, z_bottom)
+        p5 = App.Vector(0, y_right, z_top)          # right wall top
+        p6 = App.Vector(0, c_right_y, c_z + r_mid) # right curl top
+        p7 = App.Vector(0, c_right_y - r_mid, c_z) # right tip
 
-        left_center = t + shelf + r_mid
-        right_center = w - t - shelf - r_mid
-        solid = solid.fuse(half_annulus(left_center, True))
-        solid = solid.fuse(half_annulus(right_center, False))
-        return solid
+        # Build centerline as ordered edges.
+        edges = [
+            Part.Arc(p0, App.Vector(0, c_left_y + r_mid / 1.41421356237, c_z + r_mid / 1.41421356237), p1).toShape(),
+            Part.makeLine(p1, p2),
+            Part.makeLine(p2, p3),
+            Part.makeLine(p3, p4),
+            Part.makeLine(p4, p5),
+            Part.makeLine(p5, p6),
+            Part.Arc(p6, App.Vector(0, c_right_y - r_mid / 1.41421356237, c_z + r_mid / 1.41421356237), p7).toShape(),
+        ]
+        center_wire = Part.Wire(edges)
 
-    # Legacy fallback: rectangular in-turned shelves.
+        # Sweep a rectangular section of thickness t along the centerline.
+        # FreeCAD's pipe keeps the material continuous through the bends and
+        # gives us a single connected sheet-metal solid.
+        seed = Part.makePlane(
+            t,
+            L,
+            App.Vector(0, p0.y - t / 2.0, p0.z - L / 2.0),
+            App.Vector(1, 0, 0),
+        )
+        # The generic pipe API is sensitive to profile orientation; if this
+        # fails in a given OCC build, raise clearly rather than returning
+        # disconnected geometry.
+        try:
+            section = center_wire.makePipeShell([Part.Wire(seed.Edges)], True, False)
+        except Exception as exc:
+            raise RuntimeError("continuous lipped-channel sweep failed") from exc
+
+        return section
+
+    # Legacy fallback: outer-minus-inner U plus rectangular top returns.
+    outer = _rect_profile_yz(w, h)
+    inner = _rect_profile_yz(max(w - 2 * t, 0.1), max(h - t, 0.1))
+    inner.translate(App.Vector(0, t, t))
+    face = outer.cut(inner)
+    solid = face.extrude(App.Vector(L, 0, 0))
+
     max_lip = max((w - 2 * t) / 2.0 - 0.1, 0.0)
     lip = min(lip, max_lip)
 
