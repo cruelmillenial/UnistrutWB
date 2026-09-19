@@ -130,12 +130,19 @@ def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simpl
         t_mm = float(spec["t"]["mm"])
         lip_mm = float(spec["lip_return"]["mm"])
 
+        mouth = spec.get("mouth_opening") or {}
+        gap = spec.get("lip_tip_gap") or {}
+        mouth_mm = mouth.get("mm")
+        gap_mm = gap.get("mm")
+
         solid = build_u_channel_lipped(
             width_mm=w,
             depth_mm=h,
             t_mm=t_mm,
             lip_mm=lip_mm,
             length_mm=length_mm,
+            mouth_opening_mm=float(mouth_mm) if mouth_mm is not None else None,
+            lip_tip_gap_mm=float(gap_mm) if gap_mm is not None else None,
         )
 
         # --- Piercing / slots (MVP): apply after builder returns solid
@@ -203,15 +210,22 @@ def build_u_channel_lipped(
     t_mm: float,
     lip_mm: float,
     length_mm: float,
+    mouth_opening_mm: float | None = None,
+    lip_tip_gap_mm: float | None = None,
 ) -> Part.Shape:
     """
-    Lipped U-channel (MVP): base U-channel + two inward lip returns.
-    Cross-section in YZ at X=0; extrusion along +X.
+    Lipped U-channel, extruded along +X.
 
-    width_mm: outside width (Y)
-    depth_mm: outside depth/height (Z)
-    t_mm: wall thickness
-    lip_mm: inward return length from each top edge (Y direction)
+    If mouth_opening_mm and lip_tip_gap_mm are supplied, derive the curled
+    lip geometry using the ETL contract's symmetric-semicircular hypothesis:
+
+        side_projection = (width - mouth_opening) / 2
+        tip_projection = (mouth_opening - lip_tip_gap) / 2
+        nominal_radius = tip_projection / 2
+
+    The derived radius is a modeling hypothesis, not manufacturer-specified
+    bend-radius data. Profiles lacking the richer geometry inputs retain the
+    legacy rectangular-return fallback.
     """
     w = float(width_mm)
     h = float(depth_mm)
@@ -219,11 +233,7 @@ def build_u_channel_lipped(
     lip = max(float(lip_mm), 0.0)
     L = float(length_mm)
 
-    # Clamp lip so it can't collide in the middle
-    max_lip = max((w - 2 * t) / 2.0 - 0.1, 0.0)
-    lip = min(lip, max_lip)
-
-    # --- Base channel: outer minus inner cavity (open top)
+    # Base channel: outer minus inner cavity (open top).
     outer = _rect_profile_yz(w, h)
     inner = _rect_profile_yz(max(w - 2 * t, 0.1), max(h - t, 0.1))
     inner.translate(App.Vector(0, t, t))
@@ -233,20 +243,94 @@ def build_u_channel_lipped(
     if lip <= 0:
         return solid
 
-    # --- Lip returns: two rectangular shelves at the top, running along X
-    # They sit at the inner top edge (just below h), thickness t in Z.
-    # Left lip spans Y: [t, t+lip]
+    # Rich geometry path: use the source-backed mouth/tip dimensions to
+    # derive a rounded return. We model each curled lip as a half-annulus
+    # extruded along X and fuse it to a short straight shelf from the wall.
+    if mouth_opening_mm is not None and lip_tip_gap_mm is not None:
+        opening = float(mouth_opening_mm)
+        gap = float(lip_tip_gap_mm)
+
+        if not (0.0 < gap < opening < w):
+            raise ValueError(
+                "invalid lipped-channel geometry: require 0 < lip_tip_gap < "
+                "mouth_opening < width"
+            )
+
+        side_projection = (w - opening) / 2.0
+        tip_projection = (opening - gap) / 2.0
+        r_mid = tip_projection / 2.0
+
+        if r_mid <= t / 2.0:
+            raise ValueError(
+                "derived lip radius is too small for requested material thickness"
+            )
+
+        # Straight shelf spans from the inside wall to the nominal mouth datum.
+        shelf = max(side_projection - t, 0.0)
+        if shelf > 0.0:
+            left_shelf = Part.makeBox(L, shelf, t)
+            left_shelf.Placement = App.Placement(
+                App.Vector(0, t, h - t),
+                App.Rotation(),
+            )
+            right_shelf = Part.makeBox(L, shelf, t)
+            right_shelf.Placement = App.Placement(
+                App.Vector(0, w - t - shelf, h - t),
+                App.Rotation(),
+            )
+            solid = solid.fuse(left_shelf).fuse(right_shelf)
+
+        # Build each curl as a half-annulus in the YZ plane, then extrude.
+        # Midline radius follows the ETL hypothesis; inner/outer radii enforce
+        # nominal sheet thickness around that midline.
+        r_in = r_mid - t / 2.0
+        r_out = r_mid + t / 2.0
+        zc = h - t - r_mid
+
+        def half_annulus(center_y: float, left_side: bool) -> Part.Shape:
+            outer_disk = Part.makeCylinder(
+                r_out, L, App.Vector(0, center_y, zc), App.Vector(1, 0, 0)
+            )
+            inner_disk = Part.makeCylinder(
+                r_in, L, App.Vector(0, center_y, zc), App.Vector(1, 0, 0)
+            )
+            ring = outer_disk.cut(inner_disk)
+
+            if left_side:
+                clip = Part.makeBox(
+                    L,
+                    r_out + t,
+                    2.0 * r_out + 2.0 * t,
+                    App.Vector(0, center_y, zc - r_out - t),
+                )
+            else:
+                clip = Part.makeBox(
+                    L,
+                    r_out + t,
+                    2.0 * r_out + 2.0 * t,
+                    App.Vector(0, center_y - r_out - t, zc - r_out - t),
+                )
+            return ring.common(clip)
+
+        left_center = t + shelf + r_mid
+        right_center = w - t - shelf - r_mid
+        solid = solid.fuse(half_annulus(left_center, True))
+        solid = solid.fuse(half_annulus(right_center, False))
+        return solid
+
+    # Legacy fallback: rectangular in-turned shelves.
+    max_lip = max((w - 2 * t) / 2.0 - 0.1, 0.0)
+    lip = min(lip, max_lip)
+
     left = Part.makeBox(L, lip, t)
     left.Placement = App.Placement(
         App.Vector(0, t, h - t),
-        App.Rotation()
+        App.Rotation(),
     )
-
-    # Right lip spans Y: [w - t - lip, w - t]
     right = Part.makeBox(L, lip, t)
     right.Placement = App.Placement(
         App.Vector(0, w - t - lip, h - t),
-        App.Rotation()
+        App.Rotation(),
     )
-
     return solid.fuse(left).fuse(right)
+
