@@ -199,3 +199,187 @@ for profile_id, target in fit_targets.items():
     print("  target_I11_mm4:", target["I11_in4"] * IN4_TO_MM4)
     print("  target_I22_mm4:", target["I22_in4"] * IN4_TO_MM4)
     print("  objective_seed:", area_err * area_err + centroid_err * centroid_err)
+
+
+print("\nGRID FIT: TWO-RADIUS FAMILY")
+
+def score_candidate(*, area_in2, centroid_bottom_in, i11_in4, i22_in4, target):
+    errs = {
+        "area": (area_in2 - target["area_in2"]) / target["area_in2"],
+        "centroid": (centroid_bottom_in - target["centroid_bottom_in"]) / target["centroid_bottom_in"],
+        "i11": (i11_in4 - target["I11_in4"]) / target["I11_in4"],
+        "i22": (i22_in4 - target["I22_in4"]) / target["I22_in4"],
+    }
+    # Equal weighting for now. Keep this intentionally simple and inspectable.
+    score = sum(v * v for v in errs.values())
+    return score, errs
+
+def build_parametric_candidate(profile, *, lip_radius_mm, wall_relief_mm):
+    # Diagnostic inverse-fit family:
+    # - lip_radius_mm replaces the old radius implied purely from O/G
+    # - wall_relief_mm shortens the effective vertical web before the curl,
+    #   moving steel downward while preserving width/opening/gap.
+    #
+    # This is not yet the production geometry model. It is deliberately a
+    # minimal two-parameter family used to determine whether those degrees of
+    # freedom can reconcile A, centroid, I11 and I22 simultaneously.
+    geom = profile["geometry"]
+    spec = geom["profile_spec"]
+    w = float(geom["width"]["mm"])
+    h = float(geom["height"]["mm"])
+    t = float(spec["t"]["mm"])
+    opening = float(spec["mouth_opening"]["mm"])
+    gap = float(spec["lip_tip_gap"]["mm"])
+
+    if lip_radius_mm <= t / 2.0:
+        return None
+
+    r_mid = float(lip_radius_mm)
+    r_in = r_mid - t / 2.0
+    r_out = r_mid + t / 2.0
+
+    side_projection = (w - opening) / 2.0
+    tip_projection = (opening - gap) / 2.0
+
+    # Preserve the published lateral tip constraint. If the selected radius
+    # cannot reach the tip without a negative tangent leg, reject it.
+    tangent_leg = tip_projection - 2.0 * r_mid
+    if tangent_leg < -1e-6:
+        return None
+    tangent_leg = max(tangent_leg, 0.0)
+
+    z_top = h - float(wall_relief_mm)
+    if z_top <= t or z_top >= h + 1e-9:
+        return None
+
+    c_left_y = side_projection + r_mid
+    c_right_y = w - side_projection - r_mid
+    c_z = z_top - r_mid
+
+    edges = []
+    def line(y1, z1, y2, z2):
+        edges.append(Part.makeLine(App.Vector(0,y1,z1), App.Vector(0,y2,z2)))
+    def arc3(y1,z1,ym,zm,y2,z2):
+        edges.append(Part.Arc(App.Vector(0,y1,z1),App.Vector(0,ym,zm),App.Vector(0,y2,z2)).toShape())
+
+    y_lo, y_hi, z_lo = 0.0, w, 0.0
+
+    line(y_lo,z_lo,y_hi,z_lo)
+    line(y_hi,z_lo,y_hi,z_top)
+    line(y_hi,z_top,c_right_y,z_top)
+
+    arc3(c_right_y,z_top,
+         c_right_y-r_out/1.41421356237,c_z+r_out/1.41421356237,
+         c_right_y-r_out,c_z)
+
+    # Optional tangent leg toward the published lip-tip location.
+    right_outer_tip = c_right_y - r_out
+    right_outer_end = right_outer_tip - tangent_leg
+    line(right_outer_tip,c_z,right_outer_end,c_z)
+    line(right_outer_end,c_z,right_outer_end+t,c_z)
+
+    right_inner_start = c_right_y - r_in
+    if abs((right_outer_end+t) - right_inner_start) > 1e-6:
+        line(right_outer_end+t,c_z,right_inner_start,c_z)
+
+    arc3(c_right_y-r_in,c_z,
+         c_right_y-r_in/1.41421356237,c_z+r_in/1.41421356237,
+         c_right_y,c_z+r_in)
+
+    line(c_right_y,c_z+r_in,w-t,z_top-t)
+    line(w-t,z_top-t,w-t,t)
+    line(w-t,t,t,t)
+    line(t,t,t,z_top-t)
+    line(t,z_top-t,c_left_y,c_z+r_in)
+
+    arc3(c_left_y,c_z+r_in,
+         c_left_y+r_in/1.41421356237,c_z+r_in/1.41421356237,
+         c_left_y+r_in,c_z)
+
+    left_inner_tip = c_left_y + r_in
+    left_inner_end = left_inner_tip + tangent_leg
+    line(left_inner_tip,c_z,left_inner_end,c_z)
+    line(left_inner_end,c_z,left_inner_end+t,c_z)
+
+    left_outer_start = c_left_y + r_out
+    if abs((left_inner_end+t) - left_outer_start) > 1e-6:
+        line(left_inner_end+t,c_z,left_outer_start,c_z)
+
+    arc3(c_left_y+r_out,c_z,
+         c_left_y+r_out/1.41421356237,c_z+r_out/1.41421356237,
+         c_left_y,z_top)
+
+    line(c_left_y,z_top,y_lo,z_top)
+    line(y_lo,z_top,y_lo,z_lo)
+
+    wire = Part.Wire(edges)
+    if not wire.isClosed():
+        return None
+    face = Part.Face(wire)
+    if face.isNull() or not face.isValid():
+        return None
+    solid = face.extrude(App.Vector(1.0,0,0))
+    if solid.isNull() or not solid.isValid():
+        return None
+    return solid
+
+grid_targets = fit_targets
+
+for profile_id, target in grid_targets.items():
+    profile = cat.get_profile(profile_id)
+    best = None
+
+    # Broad coarse grid; small enough to run interactively in FreeCAD.
+    # Radius starts just above t/2 and stops at O/G-derived projection/2.
+    spec = profile["geometry"]["profile_spec"]
+    t = float(spec["t"]["mm"])
+    opening = float(spec["mouth_opening"]["mm"])
+    gap = float(spec["lip_tip_gap"]["mm"])
+    max_r = (opening - gap) / 4.0
+
+    radius_steps = 16
+    relief_steps = 16
+    r0 = t/2.0 + 0.15
+    r1 = max_r
+    relief0 = 0.0
+    relief1 = min(6.0, float(profile["geometry"]["height"]["mm"]) * 0.25)
+
+    for i in range(radius_steps + 1):
+        r = r0 + (r1-r0) * i / radius_steps
+        for j in range(relief_steps + 1):
+            relief = relief0 + (relief1-relief0) * j / relief_steps
+            shape = build_parametric_candidate(profile, lip_radius_mm=r, wall_relief_mm=relief)
+            if shape is None:
+                continue
+
+            area_in2 = shape.Volume / MM2_PER_IN2
+            centroid_bottom_in = shape.CenterOfMass.z / MM_PER_IN
+            moi = shape.MatrixOfInertia
+            i11_in4 = moi.A22 / IN4_TO_MM4
+            i22_in4 = moi.A33 / IN4_TO_MM4
+
+            score, errs = score_candidate(
+                area_in2=area_in2,
+                centroid_bottom_in=centroid_bottom_in,
+                i11_in4=i11_in4,
+                i22_in4=i22_in4,
+                target=target,
+            )
+            row = (score, r, relief, area_in2, centroid_bottom_in, i11_in4, i22_in4, errs)
+            if best is None or score < best[0]:
+                best = row
+
+    print(profile_id)
+    if best is None:
+        print("  no valid candidates")
+        continue
+
+    score, r, relief, area_in2, centroid_bottom_in, i11_in4, i22_in4, errs = best
+    print("  best_score:", score)
+    print("  lip_radius_mm:", r)
+    print("  wall_relief_mm:", relief)
+    print("  area_in2:", area_in2, "target:", target["area_in2"])
+    print("  centroid_bottom_in:", centroid_bottom_in, "target:", target["centroid_bottom_in"])
+    print("  I11_in4:", i11_in4, "target:", target["I11_in4"])
+    print("  I22_in4:", i22_in4, "target:", target["I22_in4"])
+    print("  rel_errors:", errs)
