@@ -152,3 +152,50 @@ for profile_id, target in inverse_targets.items():
         print("  weight_from_area_at_0.2836_lb_in3:", weight_from_area)
         print("  weight_delta_lb_per_ft:", weight_from_area - catalog_weight)
         print("  implied_density_lb_in3:", implied_density)
+
+
+print("\nFITNESS OBJECTIVE")
+fit_targets = {
+    "P1000": {
+        "area_in2": 0.555,
+        "centroid_bottom_in": 0.710,
+        "I11_in4": 0.185,
+        "I22_in4": 0.236,
+    },
+    "P4100": {
+        "area_in2": 0.290,
+        "centroid_bottom_in": 0.333,
+        "I11_in4": 0.026,
+        "I22_in4": 0.107,
+    },
+}
+
+IN4_TO_MM4 = MM_PER_IN ** 4
+
+for profile_id, target in fit_targets.items():
+    profile = cat.get_profile(profile_id)
+    shape = profiles.build_channel(profile, 1.0, mode="simple")
+
+    # Unit-length extrusion means Volume == section area in mm^2.
+    area_mm2 = shape.Volume
+    centroid_z_mm = shape.CenterOfMass.z
+
+    # FreeCAD solid inertia for a 1 mm extrusion is dominated in X by the
+    # section's in-plane distribution. For now report the principal moments
+    # directly as diagnostics; we will map them to catalog axes in the next
+    # iteration once the cross-section model itself is parameterized.
+    moi = shape.MatrixOfInertia
+    ixx_mm4 = moi.A11
+    iyy_mm4 = moi.A22
+    izz_mm4 = moi.A33
+
+    area_err = (area_mm2 / MM2_PER_IN2 - target["area_in2"]) / target["area_in2"]
+    centroid_err = (centroid_z_mm / MM_PER_IN - target["centroid_bottom_in"]) / target["centroid_bottom_in"]
+
+    print(profile_id)
+    print("  area_rel_error:", area_err)
+    print("  centroid_rel_error:", centroid_err)
+    print("  raw_MOI_mm4:", {"xx": ixx_mm4, "yy": iyy_mm4, "zz": izz_mm4})
+    print("  target_I11_mm4:", target["I11_in4"] * IN4_TO_MM4)
+    print("  target_I22_mm4:", target["I22_in4"] * IN4_TO_MM4)
+    print("  objective_seed:", area_err * area_err + centroid_err * centroid_err)
