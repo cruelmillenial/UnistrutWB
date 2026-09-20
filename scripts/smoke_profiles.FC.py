@@ -258,6 +258,8 @@ def build_parametric_candidate(profile, *, lip_radius_mm, wall_relief_mm):
 
     edges = []
     def line(y1, z1, y2, z2):
+        if abs(y2-y1) < 1e-9 and abs(z2-z1) < 1e-9:
+            return
         edges.append(Part.makeLine(App.Vector(0,y1,z1), App.Vector(0,y2,z2)))
     def arc3(y1,z1,ym,zm,y2,z2):
         edges.append(Part.Arc(App.Vector(0,y1,z1),App.Vector(0,ym,zm),App.Vector(0,y2,z2)).toShape())
