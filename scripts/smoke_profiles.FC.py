@@ -92,3 +92,63 @@ for profile_id, target in published.items():
     print("  published_centroid_z_mm:", published_cz_mm)
     print("  actual_centroid_z_mm:", actual_cz_mm)
     print("  centroid_delta_mm:", actual_cz_mm - published_cz_mm)
+
+
+print("\nINVERSE GEOMETRY CHECK")
+inverse_targets = {
+    "P1000": {
+        "area_in2": 0.555,
+        "weight_lb_per_ft": 1.89,
+    },
+    "P4100": {
+        "area_in2": 0.290,
+        # Weight is intentionally omitted until a reviewed catalog value is
+        # wired into the bundled data/fixture.
+    },
+}
+STEEL_DENSITY_LB_IN3 = 0.2836
+
+for profile_id, target in inverse_targets.items():
+    profile = cat.get_profile(profile_id)
+    geom = profile["geometry"]
+    spec = geom["profile_spec"]
+    width_mm = float(geom["width"]["mm"])
+    depth_mm = float(geom["height"]["mm"])
+    t_mm = float(spec["t"]["mm"])
+    opening_mm = float(spec["mouth_opening"]["mm"])
+    gap_mm = float(spec["lip_tip_gap"]["mm"])
+
+    # For a uniform-thickness formed strip, A/t is the area-equivalent
+    # developed centerline length. This is independent of the current OCC
+    # boundary construction and gives us a powerful inverse constraint.
+    published_area_mm2 = target["area_in2"] * MM2_PER_IN2
+    developed_from_area_mm = published_area_mm2 / t_mm
+
+    shape = profiles.build_channel(profile, 1.0, mode="simple")
+    actual_area_mm2 = shape.Volume
+    developed_from_model_mm = actual_area_mm2 / t_mm
+
+    side_projection_mm = (width_mm - opening_mm) / 2.0
+    tip_projection_mm = (opening_mm - gap_mm) / 2.0
+    naive_semicircle_radius_mm = tip_projection_mm / 2.0
+
+    print(profile_id)
+    print("  width_mm:", width_mm, "depth_mm:", depth_mm, "thickness_mm:", t_mm)
+    print("  opening_mm:", opening_mm, "gap_mm:", gap_mm)
+    print("  side_projection_mm:", side_projection_mm)
+    print("  tip_projection_mm:", tip_projection_mm)
+    print("  old_naive_semicircle_radius_mm:", naive_semicircle_radius_mm)
+    print("  published_area_mm2:", published_area_mm2)
+    print("  developed_length_from_area_mm:", developed_from_area_mm)
+    print("  model_area_mm2:", actual_area_mm2)
+    print("  developed_length_from_model_mm:", developed_from_model_mm)
+    print("  developed_length_excess_mm:", developed_from_model_mm - developed_from_area_mm)
+
+    if "weight_lb_per_ft" in target:
+        catalog_weight = target["weight_lb_per_ft"]
+        weight_from_area = target["area_in2"] * 12.0 * STEEL_DENSITY_LB_IN3
+        implied_density = catalog_weight / (target["area_in2"] * 12.0)
+        print("  catalog_weight_lb_per_ft:", catalog_weight)
+        print("  weight_from_area_at_0.2836_lb_in3:", weight_from_area)
+        print("  weight_delta_lb_per_ft:", weight_from_area - catalog_weight)
+        print("  implied_density_lb_in3:", implied_density)
