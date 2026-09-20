@@ -72,3 +72,23 @@ for profile_id, target in targets.items():
     print("  centroid_bottom_in:", centroid_bottom_in, "target:", target["centroid_bottom_in"])
     print("  centroid_top_in:", centroid_top_in, "target:", target["centroid_top_in"])
     print("  nominal_height_mm:", height_mm, "bb_height_mm:", bb_h, "delta_mm:", bb_h - height_mm)
+
+print("\nDIAGNOSTIC DELTAS")
+published = {
+    "P1000": {"area_in2": 0.555, "centroid_bottom_in": 0.710},
+    "P4100": {"area_in2": 0.290, "centroid_bottom_in": 0.333},
+}
+for profile_id, target in published.items():
+    profile = cat.get_profile(profile_id)
+    shape = profiles.build_channel(profile, 1.0, mode="simple")
+    actual_area_mm2 = shape.Volume
+    published_area_mm2 = target["area_in2"] * MM2_PER_IN2
+    actual_cz_mm = shape.CenterOfMass.z
+    published_cz_mm = target["centroid_bottom_in"] * MM_PER_IN
+    print(profile_id)
+    print("  published_area_mm2:", published_area_mm2)
+    print("  actual_area_mm2:", actual_area_mm2)
+    print("  excess_area_mm2:", actual_area_mm2 - published_area_mm2)
+    print("  published_centroid_z_mm:", published_cz_mm)
+    print("  actual_centroid_z_mm:", actual_cz_mm)
+    print("  centroid_delta_mm:", actual_cz_mm - published_cz_mm)
