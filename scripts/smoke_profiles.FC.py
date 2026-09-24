@@ -439,8 +439,13 @@ def build_parametric_candidate_v2(profile, *, lip_radius_mm, wall_relief_mm, cur
     c_z = z_top - r_mid
 
     line(0,0,w,0)
-    line(w,0,w,z_top)
-    line(w,z_top,c_right_y,z_top)
+    # z_top is the centerline crown.  The material's outer boundary is
+    # t/2 above it at the crown, while the inner boundary is t/2 below it.
+    # Keep the outer web/top boundary on the actual r_out tangent point so
+    # the boundary wire is topologically closed.
+    z_outer_crown = c_z + r_out
+    line(w,0,w,z_outer_crown)
+    line(w,z_outer_crown,c_right_y,z_outer_crown)
 
     a0 = math.pi/2.0
     a1 = math.pi/2.0 + theta
@@ -486,8 +491,8 @@ def build_parametric_candidate_v2(profile, *, lip_radius_mm, wall_relief_mm, cur
     line(lo_end_y+tangent_leg*ltan_y,lo_end_z+tangent_leg*ltan_z,lo_end_y,lo_end_z)
 
     arc_pts(c_left_y,c_z,r_out,la1,la0)
-    line(c_left_y,z_top,0,z_top)
-    line(0,z_top,0,0)
+    line(c_left_y,z_outer_crown,0,z_outer_crown)
+    line(0,z_outer_crown,0,0)
 
     try:
         wire = Part.Wire(edges)
