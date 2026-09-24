@@ -559,3 +559,83 @@ for profile_id, target in fit_targets.items():
     print("  I11_in4:",i11_in4,"target:",target["I11_in4"])
     print("  I22_in4:",i22_in4,"target:",target["I22_in4"])
     print("  rel_errors:",errs)
+
+
+print("\nTHREE-PARAMETER SINGLE-CANDIDATE TRACE")
+
+def trace_parametric_candidate(profile_id, *, lip_radius_mm, wall_relief_mm, curl_sweep_deg):
+    profile = cat.get_profile(profile_id)
+    geom = profile["geometry"]
+    spec = geom["profile_spec"]
+    w = float(geom["width"]["mm"])
+    h = float(geom["height"]["mm"])
+    t = float(spec["t"]["mm"])
+    opening = float(spec["mouth_opening"]["mm"])
+    gap = float(spec["lip_tip_gap"]["mm"])
+
+    print(profile_id)
+    print("  params:", {"lip_radius_mm": lip_radius_mm, "wall_relief_mm": wall_relief_mm, "curl_sweep_deg": curl_sweep_deg})
+
+    try:
+        r_mid = float(lip_radius_mm)
+        r_in = r_mid - t/2.0
+        r_out = r_mid + t/2.0
+        side_projection = (w-opening)/2.0
+        tip_projection = (opening-gap)/2.0
+        theta = math.radians(float(curl_sweep_deg))
+        lateral_from_arc = r_mid * math.sin(theta)
+        tangent_leg = tip_projection - lateral_from_arc
+        z_top = h - float(wall_relief_mm)
+
+        print("  derived:", {
+            "r_in": r_in,
+            "r_out": r_out,
+            "side_projection": side_projection,
+            "tip_projection": tip_projection,
+            "lateral_from_arc": lateral_from_arc,
+            "tangent_leg": tangent_leg,
+            "z_top": z_top,
+        })
+
+        if r_in <= 0:
+            print("  FAIL: non-positive inner radius")
+            return
+        if tangent_leg < -1e-6:
+            print("  FAIL: negative tangent leg")
+            return
+        if z_top <= t or z_top >= h + 1e-9:
+            print("  FAIL: invalid z_top")
+            return
+
+        shape = build_parametric_candidate_v2(
+            profile,
+            lip_radius_mm=lip_radius_mm,
+            wall_relief_mm=wall_relief_mm,
+            curl_sweep_deg=curl_sweep_deg,
+        )
+        if shape is None:
+            print("  FAIL: builder returned None; likely wire/face/solid validity")
+            return
+
+        print("  PASS")
+        print("  BB:", shape.BoundBox.XLength, shape.BoundBox.YLength, shape.BoundBox.ZLength)
+        print("  area_in2:", shape.Volume/MM2_PER_IN2)
+        print("  centroid_bottom_in:", shape.CenterOfMass.z/MM_PER_IN)
+        moi = shape.MatrixOfInertia
+        print("  I11_in4:", moi.A22/IN4_TO_MM4)
+        print("  I22_in4:", moi.A33/IN4_TO_MM4)
+    except Exception as exc:
+        print("  EXCEPTION:", type(exc).__name__, str(exc))
+
+trace_parametric_candidate(
+    "P1000",
+    lip_radius_mm=3.7703125,
+    wall_relief_mm=3.375,
+    curl_sweep_deg=90.0,
+)
+trace_parametric_candidate(
+    "P4100",
+    lip_radius_mm=3.96875,
+    wall_relief_mm=1.934765625,
+    curl_sweep_deg=90.0,
+)
