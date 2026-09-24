@@ -385,3 +385,176 @@ for profile_id, target in grid_targets.items():
     print("  I11_in4:", i11_in4, "target:", target["I11_in4"])
     print("  I22_in4:", i22_in4, "target:", target["I22_in4"])
     print("  rel_errors:", errs)
+
+
+print("\nGRID FIT: THREE-PARAMETER CURL FAMILY")
+
+def build_parametric_candidate_v2(profile, *, lip_radius_mm, wall_relief_mm, curl_sweep_deg):
+    geom = profile["geometry"]
+    spec = geom["profile_spec"]
+    w = float(geom["width"]["mm"])
+    h = float(geom["height"]["mm"])
+    t = float(spec["t"]["mm"])
+    opening = float(spec["mouth_opening"]["mm"])
+    gap = float(spec["lip_tip_gap"]["mm"])
+
+    if lip_radius_mm <= t / 2.0:
+        return None
+    if not (55.0 <= curl_sweep_deg <= 120.0):
+        return None
+
+    r_mid = float(lip_radius_mm)
+    r_in = r_mid - t / 2.0
+    r_out = r_mid + t / 2.0
+
+    side_projection = (w - opening) / 2.0
+    tip_projection = (opening - gap) / 2.0
+
+    theta = math.radians(float(curl_sweep_deg))
+    lateral_from_arc = r_mid * math.sin(theta)
+    tangent_leg = tip_projection - lateral_from_arc
+    if tangent_leg < -1e-6:
+        return None
+    tangent_leg = max(tangent_leg, 0.0)
+
+    z_top = h - float(wall_relief_mm)
+    if z_top <= t or z_top >= h + 1e-9:
+        return None
+
+    edges = []
+    def line(y1,z1,y2,z2):
+        if abs(y2-y1) < 1e-9 and abs(z2-z1) < 1e-9:
+            return
+        edges.append(Part.makeLine(App.Vector(0,y1,z1), App.Vector(0,y2,z2)))
+    def arc_pts(cy,cz,r,a0,a1):
+        am = 0.5*(a0+a1)
+        p0 = App.Vector(0, cy + r*math.cos(a0), cz + r*math.sin(a0))
+        pm = App.Vector(0, cy + r*math.cos(am), cz + r*math.sin(am))
+        p1 = App.Vector(0, cy + r*math.cos(a1), cz + r*math.sin(a1))
+        edges.append(Part.Arc(p0,pm,p1).toShape())
+
+    # Right curl: start at top, rotate inward/down by sweep.
+    c_right_y = w - side_projection - r_mid
+    c_z = z_top - r_mid
+
+    line(0,0,w,0)
+    line(w,0,w,z_top)
+    line(w,z_top,c_right_y,z_top)
+
+    a0 = math.pi/2.0
+    a1 = math.pi/2.0 + theta
+    arc_pts(c_right_y,c_z,r_out,a0,a1)
+    ro_y = c_right_y + r_out*math.cos(a1)
+    ro_z = c_z + r_out*math.sin(a1)
+
+    tan_y = -math.sin(a1)
+    tan_z = math.cos(a1)
+    line(ro_y,ro_z,ro_y+tangent_leg*tan_y,ro_z+tangent_leg*tan_z)
+
+    ri_end_y = c_right_y + r_in*math.cos(a1)
+    ri_end_z = c_z + r_in*math.sin(a1)
+    outer_tip_y = ro_y+tangent_leg*tan_y
+    outer_tip_z = ro_z+tangent_leg*tan_z
+    line(outer_tip_y,outer_tip_z,ri_end_y+tangent_leg*tan_y,ri_end_z+tangent_leg*tan_z)
+    line(ri_end_y+tangent_leg*tan_y,ri_end_z+tangent_leg*tan_z,ri_end_y,ri_end_z)
+
+    arc_pts(c_right_y,c_z,r_in,a1,a0)
+    line(c_right_y,c_z+r_in,w-t,z_top-t)
+    line(w-t,z_top-t,w-t,t)
+    line(w-t,t,t,t)
+    line(t,t,t,z_top-t)
+
+    # Left side mirrors the right.
+    c_left_y = side_projection + r_mid
+    line(t,z_top-t,c_left_y,c_z+r_in)
+
+    la0 = math.pi/2.0
+    la1 = math.pi/2.0 - theta
+    arc_pts(c_left_y,c_z,r_in,la0,la1)
+    li_end_y = c_left_y + r_in*math.cos(la1)
+    li_end_z = c_z + r_in*math.sin(la1)
+
+    ltan_y = -math.sin(la1)
+    ltan_z = math.cos(la1)
+    line(li_end_y,li_end_z,li_end_y+tangent_leg*ltan_y,li_end_z+tangent_leg*ltan_z)
+
+    lo_end_y = c_left_y + r_out*math.cos(la1)
+    lo_end_z = c_z + r_out*math.sin(la1)
+    line(li_end_y+tangent_leg*ltan_y,li_end_z+tangent_leg*ltan_z,
+         lo_end_y+tangent_leg*ltan_y,lo_end_z+tangent_leg*ltan_z)
+    line(lo_end_y+tangent_leg*ltan_y,lo_end_z+tangent_leg*ltan_z,lo_end_y,lo_end_z)
+
+    arc_pts(c_left_y,c_z,r_out,la1,la0)
+    line(c_left_y,z_top,0,z_top)
+    line(0,z_top,0,0)
+
+    try:
+        wire = Part.Wire(edges)
+        if not wire.isClosed():
+            return None
+        face = Part.Face(wire)
+        if face.isNull() or not face.isValid():
+            return None
+        solid = face.extrude(App.Vector(1.0,0,0))
+        if solid.isNull() or not solid.isValid():
+            return None
+        return solid
+    except Exception:
+        return None
+
+for profile_id, target in fit_targets.items():
+    profile = cat.get_profile(profile_id)
+    spec = profile["geometry"]["profile_spec"]
+    t = float(spec["t"]["mm"])
+    opening = float(spec["mouth_opening"]["mm"])
+    gap = float(spec["lip_tip_gap"]["mm"])
+    max_r = (opening-gap)/4.0
+
+    best = None
+    valid_count = 0
+
+    # Coarse exploratory grid. Keep runtime tolerable in the FreeCAD console.
+    for ri in range(9):
+        r = (t/2.0 + 0.15) + (max_r-(t/2.0+0.15))*ri/8.0
+        for rli in range(9):
+            relief = min(6.0,float(profile["geometry"]["height"]["mm"])*0.25)*rli/8.0
+            for si in range(9):
+                sweep = 60.0 + 60.0*si/8.0
+                shape = build_parametric_candidate_v2(profile, lip_radius_mm=r, wall_relief_mm=relief, curl_sweep_deg=sweep)
+                if shape is None:
+                    continue
+                valid_count += 1
+
+                area_in2 = shape.Volume/MM2_PER_IN2
+                centroid_bottom_in = shape.CenterOfMass.z/MM_PER_IN
+                moi = shape.MatrixOfInertia
+                i11_in4 = moi.A22/IN4_TO_MM4
+                i22_in4 = moi.A33/IN4_TO_MM4
+
+                score, errs = score_candidate(
+                    area_in2=area_in2,
+                    centroid_bottom_in=centroid_bottom_in,
+                    i11_in4=i11_in4,
+                    i22_in4=i22_in4,
+                    target=target,
+                )
+                row=(score,r,relief,sweep,area_in2,centroid_bottom_in,i11_in4,i22_in4,errs)
+                if best is None or score < best[0]:
+                    best=row
+
+    print(profile_id)
+    print("  valid_candidates:", valid_count)
+    if best is None:
+        print("  no valid candidates")
+        continue
+
+    score,r,relief,sweep,area_in2,centroid_bottom_in,i11_in4,i22_in4,errs=best
+    print("  best_score:",score)
+    print("  lip_radius_mm:",r)
+    print("  wall_relief_mm:",relief)
+    print("  curl_sweep_deg:",sweep)
+    print("  area_in2:",area_in2,"target:",target["area_in2"])
+    print("  centroid_bottom_in:",centroid_bottom_in,"target:",target["centroid_bottom_in"])
+    print("  I11_in4:",i11_in4,"target:",target["I11_in4"])
+    print("  I22_in4:",i22_in4,"target:",target["I22_in4"])
+    print("  rel_errors:",errs)
