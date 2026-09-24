@@ -639,3 +639,88 @@ trace_parametric_candidate(
     wall_relief_mm=1.934765625,
     curl_sweep_deg=90.0,
 )
+
+
+print("\nTHREE-PARAMETER EDGE TRACE")
+
+def trace_candidate_edges(profile_id, *, lip_radius_mm, wall_relief_mm, curl_sweep_deg):
+    profile = cat.get_profile(profile_id)
+    geom = profile["geometry"]
+    spec = geom["profile_spec"]
+    w = float(geom["width"]["mm"])
+    h = float(geom["height"]["mm"])
+    t = float(spec["t"]["mm"])
+    opening = float(spec["mouth_opening"]["mm"])
+    gap = float(spec["lip_tip_gap"]["mm"])
+
+    r_mid = float(lip_radius_mm)
+    r_in = r_mid - t/2.0
+    r_out = r_mid + t/2.0
+    side_projection = (w-opening)/2.0
+    tip_projection = (opening-gap)/2.0
+    theta = math.radians(float(curl_sweep_deg))
+    tangent_leg = max(0.0, tip_projection - r_mid*math.sin(theta))
+    z_top = h - float(wall_relief_mm)
+    c_z = z_top-r_mid
+    c_right_y = w-side_projection-r_mid
+    c_left_y = side_projection+r_mid
+
+    pts=[]
+    def add(label,y,z):
+        pts.append((label,float(y),float(z)))
+
+    add("bottom-left",0,0)
+    add("bottom-right",w,0)
+    add("right-top-outer",w,z_top)
+    add("right-arc-start",c_right_y,z_top)
+
+    a0=math.pi/2.0
+    a1=math.pi/2.0+theta
+    ro_y=c_right_y+r_out*math.cos(a1); ro_z=c_z+r_out*math.sin(a1)
+    add("right-arc-outer-end",ro_y,ro_z)
+    tan_y=-math.sin(a1); tan_z=math.cos(a1)
+    rot_y=ro_y+tangent_leg*tan_y; rot_z=ro_z+tangent_leg*tan_z
+    add("right-outer-tip",rot_y,rot_z)
+
+    ri_y=c_right_y+r_in*math.cos(a1); ri_z=c_z+r_in*math.sin(a1)
+    rit_y=ri_y+tangent_leg*tan_y; rit_z=ri_z+tangent_leg*tan_z
+    add("right-inner-tip-offset",rit_y,rit_z)
+    add("right-arc-inner-end",ri_y,ri_z)
+    add("right-arc-inner-start",c_right_y,c_z+r_in)
+    add("right-web-inner-top",w-t,z_top-t)
+    add("right-web-inner-bottom",w-t,t)
+    add("left-web-inner-bottom",t,t)
+    add("left-web-inner-top",t,z_top-t)
+    add("left-arc-inner-start",c_left_y,c_z+r_in)
+
+    la1=math.pi/2.0-theta
+    li_y=c_left_y+r_in*math.cos(la1); li_z=c_z+r_in*math.sin(la1)
+    lty=-math.sin(la1); ltz=math.cos(la1)
+    lit_y=li_y+tangent_leg*lty; lit_z=li_z+tangent_leg*ltz
+    add("left-arc-inner-end",li_y,li_z)
+    add("left-inner-tip-offset",lit_y,lit_z)
+
+    lo_y=c_left_y+r_out*math.cos(la1); lo_z=c_z+r_out*math.sin(la1)
+    lot_y=lo_y+tangent_leg*lty; lot_z=lo_z+tangent_leg*ltz
+    add("left-outer-tip",lot_y,lot_z)
+    add("left-arc-outer-end",lo_y,lo_z)
+    add("left-arc-outer-start",c_left_y,z_top)
+    add("left-top-outer",0,z_top)
+
+    print(profile_id)
+    for label,y,z in pts:
+        print(" ",label,":",y,z)
+
+    # Cheap diagnostics before OCC: detect exact duplicate consecutive points
+    # and gross envelope violations.
+    dupes=[]
+    for (la,ya,za),(lb,yb,zb) in zip(pts,pts[1:]):
+        if abs(ya-yb)<1e-9 and abs(za-zb)<1e-9:
+            dupes.append((la,lb))
+    print("  duplicate_consecutive_points:",dupes)
+    ys=[p[1] for p in pts]; zs=[p[2] for p in pts]
+    print("  point_envelope_y:",min(ys),max(ys),"nominal:",0,w)
+    print("  point_envelope_z:",min(zs),max(zs),"nominal:",0,h)
+
+trace_candidate_edges("P1000",lip_radius_mm=3.7703125,wall_relief_mm=3.375,curl_sweep_deg=90.0)
+trace_candidate_edges("P4100",lip_radius_mm=3.96875,wall_relief_mm=1.934765625,curl_sweep_deg=90.0)
