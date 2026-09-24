@@ -835,3 +835,85 @@ def trace_builder_stage(profile_id, *, lip_radius_mm, wall_relief_mm, curl_sweep
 
 trace_builder_stage("P1000",lip_radius_mm=3.7703125,wall_relief_mm=3.375,curl_sweep_deg=90.0)
 trace_builder_stage("P4100",lip_radius_mm=3.96875,wall_relief_mm=1.934765625,curl_sweep_deg=90.0)
+
+
+print("\nTHREE-PARAMETER EDGE-JOIN GAPS")
+
+def trace_edge_join_gaps(profile_id, *, lip_radius_mm, wall_relief_mm, curl_sweep_deg):
+    profile = cat.get_profile(profile_id)
+    geom = profile["geometry"]
+    spec = geom["profile_spec"]
+    w = float(geom["width"]["mm"])
+    h = float(geom["height"]["mm"])
+    t = float(spec["t"]["mm"])
+    opening = float(spec["mouth_opening"]["mm"])
+    gap = float(spec["lip_tip_gap"]["mm"])
+    r_mid = float(lip_radius_mm)
+    r_in = r_mid - t/2.0
+    r_out = r_mid + t/2.0
+    side_projection = (w-opening)/2.0
+    tip_projection = (opening-gap)/2.0
+    theta = math.radians(float(curl_sweep_deg))
+    tangent_leg = max(0.0, tip_projection-r_mid*math.sin(theta))
+    z_top = h-float(wall_relief_mm)
+    c_z = z_top-r_mid
+    c_right_y = w-side_projection-r_mid
+    c_left_y = side_projection+r_mid
+
+    edges=[]; labels=[]
+    def line(label,y1,z1,y2,z2):
+        edges.append(Part.makeLine(App.Vector(0,y1,z1),App.Vector(0,y2,z2))); labels.append(label)
+    def arc(label,cy,cz,r,a0,a1):
+        am=.5*(a0+a1)
+        edges.append(Part.Arc(
+            App.Vector(0,cy+r*math.cos(a0),cz+r*math.sin(a0)),
+            App.Vector(0,cy+r*math.cos(am),cz+r*math.sin(am)),
+            App.Vector(0,cy+r*math.cos(a1),cz+r*math.sin(a1))).toShape()); labels.append(label)
+
+    a0=math.pi/2; a1=math.pi/2+theta
+    line("bottom",0,0,w,0)
+    line("right_outer_web",w,0,w,z_top)
+    line("right_top_outer",w,z_top,c_right_y,z_top)
+    arc("right_outer_arc",c_right_y,c_z,r_out,a0,a1)
+    ro_y=c_right_y+r_out*math.cos(a1); ro_z=c_z+r_out*math.sin(a1)
+    ty=-math.sin(a1); tz=math.cos(a1)
+    rot_y=ro_y+tangent_leg*ty; rot_z=ro_z+tangent_leg*tz
+    line("right_outer_tangent",ro_y,ro_z,rot_y,rot_z)
+    ri_y=c_right_y+r_in*math.cos(a1); ri_z=c_z+r_in*math.sin(a1)
+    rit_y=ri_y+tangent_leg*ty; rit_z=ri_z+tangent_leg*tz
+    line("right_tip_thickness",rot_y,rot_z,rit_y,rit_z)
+    line("right_inner_tangent",rit_y,rit_z,ri_y,ri_z)
+    arc("right_inner_arc",c_right_y,c_z,r_in,a1,a0)
+    line("right_arc_to_inner_web",c_right_y,c_z+r_in,w-t,z_top-t)
+    line("right_inner_web",w-t,z_top-t,w-t,t)
+    line("inner_bottom",w-t,t,t,t)
+    line("left_inner_web",t,t,t,z_top-t)
+    line("left_inner_web_to_arc",t,z_top-t,c_left_y,c_z+r_in)
+    la0=math.pi/2; la1=math.pi/2-theta
+    arc("left_inner_arc",c_left_y,c_z,r_in,la0,la1)
+    li_y=c_left_y+r_in*math.cos(la1); li_z=c_z+r_in*math.sin(la1)
+    lty=-math.sin(la1); ltz=math.cos(la1)
+    lit_y=li_y+tangent_leg*lty; lit_z=li_z+tangent_leg*ltz
+    line("left_inner_tangent",li_y,li_z,lit_y,lit_z)
+    lo_y=c_left_y+r_out*math.cos(la1); lo_z=c_z+r_out*math.sin(la1)
+    lot_y=lo_y+tangent_leg*lty; lot_z=lo_z+tangent_leg*ltz
+    line("left_tip_thickness",lit_y,lit_z,lot_y,lot_z)
+    line("left_outer_tangent",lot_y,lot_z,lo_y,lo_z)
+    arc("left_outer_arc",c_left_y,c_z,r_out,la1,la0)
+    line("left_top_outer",c_left_y,z_top,0,z_top)
+    line("left_outer_web",0,z_top,0,0)
+
+    print(profile_id)
+    max_gap=0.0
+    for i,e in enumerate(edges):
+        n=(i+1)%len(edges)
+        gap=(e.Vertexes[-1].Point-edges[n].Vertexes[0].Point).Length
+        max_gap=max(max_gap,gap)
+        if gap > 1e-7:
+            print(" ",labels[i],"->",labels[n],"gap_mm:",gap,
+                  "from:",tuple(e.Vertexes[-1].Point),
+                  "to:",tuple(edges[n].Vertexes[0].Point))
+    print("  max_join_gap_mm:",max_gap)
+
+trace_edge_join_gaps("P1000",lip_radius_mm=3.7703125,wall_relief_mm=3.375,curl_sweep_deg=90.0)
+trace_edge_join_gaps("P4100",lip_radius_mm=3.96875,wall_relief_mm=1.934765625,curl_sweep_deg=90.0)
