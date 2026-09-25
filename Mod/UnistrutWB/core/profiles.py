@@ -217,10 +217,11 @@ def build_u_channel_lipped(
     Lipped U-channel, extruded along +X.
 
     Rich geometry keeps the published mouth opening as the clear throat and
-    interprets lip_depth as a vertical terminal-curl dimension.  The section is
-    built from robust fused solids rather than one self-intersecting boundary
-    wire, because OCC can reject otherwise-closed wires with overlapping curl
-    edges.
+    interprets lip_depth as a vertical terminal-curl dimension.  Build the
+    entire section as one closed 2D face, but use a deliberately simple
+    rectangular return for the terminal lip so OCC gets a robust manifold
+    solid. This is a temporary test geometry: correct semantics first,
+    rounded curl later.
     """
     w = float(width_mm)
     h = float(depth_mm)
@@ -244,7 +245,8 @@ def build_u_channel_lipped(
         left.Placement = App.Placement(App.Vector(0, t, h - t), App.Rotation())
         right = Part.makeBox(L, lip_eff, t)
         right.Placement = App.Placement(App.Vector(0, w - t - lip_eff, h - t), App.Rotation())
-        return solid.fuse(left).fuse(right)
+        fused = solid.fuse(left).fuse(right)
+        return fused.Solids[0] if len(fused.Solids) == 1 else fused
 
     if mouth_opening_mm is None or lip_depth_mm is None:
         return legacy_rectangular()
@@ -256,71 +258,45 @@ def build_u_channel_lipped(
     if lip_depth <= t:
         raise ValueError("invalid lipped-channel geometry: lip depth must exceed thickness")
 
-    side_projection = (w - opening) / 2.0
+    side = (w - opening) / 2.0
+    y_left_mouth = side
+    y_right_mouth = w - side
+    z_tip = h - lip_depth
 
-    # Base U shell, open at the top.
-    outer = _rect_profile_yz(w, h)
-    inner = _rect_profile_yz(max(w - 2 * t, 0.1), max(h - t, 0.1))
-    inner.translate(App.Vector(0, t, t))
-    base_face = outer.cut(inner)
-    solid = base_face.extrude(App.Vector(L, 0, 0))
+    # Closed material boundary. The 7/8 in datum remains the mouth opening;
+    # lip_depth is vertical.  The terminal returns are intentionally square
+    # for this checkpoint so we can get a trustworthy solid back into FreeCAD
+    # before reintroducing rounded curl topology.
+    pts = [
+        App.Vector(0, 0.0, 0.0),
+        App.Vector(0, w, 0.0),
+        App.Vector(0, w, h),
+        App.Vector(0, y_right_mouth, h),
+        App.Vector(0, y_right_mouth, z_tip),
+        App.Vector(0, y_right_mouth - t, z_tip),
+        App.Vector(0, y_right_mouth - t, h - t),
+        App.Vector(0, w - t, h - t),
+        App.Vector(0, w - t, t),
+        App.Vector(0, t, t),
+        App.Vector(0, t, h - t),
+        App.Vector(0, y_left_mouth + t, h - t),
+        App.Vector(0, y_left_mouth + t, z_tip),
+        App.Vector(0, y_left_mouth, z_tip),
+        App.Vector(0, y_left_mouth, h),
+        App.Vector(0, 0.0, h),
+        App.Vector(0, 0.0, 0.0),
+    ]
 
-    # Add the horizontal shoulders up to the mouth edges.
-    left_shoulder = Part.makeBox(L, max(side_projection - t, 0.0), t)
-    left_shoulder.Placement = App.Placement(App.Vector(0, t, h - t), App.Rotation())
-    right_shoulder = Part.makeBox(L, max(side_projection - t, 0.0), t)
-    right_shoulder.Placement = App.Placement(
-        App.Vector(0, w - side_projection, h - t), App.Rotation()
-    )
-    solid = solid.fuse(left_shoulder).fuse(right_shoulder)
+    wire = Part.Wire(Part.makePolygon(pts))
+    if not wire.isClosed():
+        raise RuntimeError("lipped-channel cross-section wire is not closed")
 
-    # Terminal curls: annular half-cylinders in the YZ section, extruded along X.
-    # Treat lip_depth as the outside diameter of the curl.  Keep the published
-    # mouth opening untouched: each curl develops downward from its mouth edge.
-    r_out = lip_depth / 2.0
-    r_in = r_out - t
-    if r_in <= 0.0:
-        raise ValueError("lip depth is too small for requested material thickness")
+    face = Part.Face(wire)
+    if face.isNull() or not face.isValid():
+        raise RuntimeError("lipped-channel cross-section face is invalid")
 
-    zc = h - r_out
-    y_left = side_projection
-    y_right = w - side_projection
-
-    def half_annulus(cy: float, inward_sign: float) -> Part.Shape:
-        # Build a 2D half-annulus in YZ and extrude it.  The diameter lies on
-        # the vertical line y=cy; the arc bulges inward into the channel.
-        yo = cy + inward_sign * r_out
-        yi = cy + inward_sign * r_in
-        edges = [
-            Part.Arc(
-                App.Vector(0, cy, h),
-                App.Vector(0, yo, zc),
-                App.Vector(0, cy, h - 2.0 * r_out),
-            ).toShape(),
-            Part.makeLine(
-                App.Vector(0, cy, h - 2.0 * r_out),
-                App.Vector(0, cy, h - 2.0 * r_in),
-            ),
-            Part.Arc(
-                App.Vector(0, cy, h - 2.0 * r_in),
-                App.Vector(0, yi, zc),
-                App.Vector(0, cy, h),
-            ).toShape(),
-        ]
-        wire = Part.Wire(edges)
-        face = Part.Face(wire)
-        return face.extrude(App.Vector(L, 0, 0))
-
-    left_curl = half_annulus(y_left, +1.0)
-    right_curl = half_annulus(y_right, -1.0)
-    solid = solid.fuse(left_curl).fuse(right_curl)
-
+    solid = face.extrude(App.Vector(L, 0, 0))
     if solid.isNull() or not solid.isValid():
         raise RuntimeError("lipped-channel extrusion produced invalid solid")
-
-    # Normalize boolean result into a single solid where possible.
-    if getattr(solid, "Solids", None) and len(solid.Solids) == 1:
-        solid = solid.Solids[0]
-
     return solid
 
