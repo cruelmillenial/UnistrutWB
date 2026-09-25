@@ -216,15 +216,11 @@ def build_u_channel_lipped(
     """
     Lipped U-channel, extruded along +X.
 
-    Rich-geometry path:
-    - preserve the published mouth opening as the clear throat
-    - interpret the secondary lip dimension as vertical lip depth
-    - model each terminal return as a localized constant-thickness half-circle
-      attached to the inward shoulder edge
-    - keep the entire formed section within the published width/depth envelope
-
-    Profiles without mouth/lip-depth dimensions retain the legacy rectangular
-    return fallback.
+    Rich geometry keeps the published mouth opening as the clear throat and
+    interprets lip_depth as a vertical terminal-curl dimension.  The section is
+    built from robust fused solids rather than one self-intersecting boundary
+    wire, because OCC can reject otherwise-closed wires with overlapping curl
+    edges.
     """
     w = float(width_mm)
     h = float(depth_mm)
@@ -262,89 +258,69 @@ def build_u_channel_lipped(
 
     side_projection = (w - opening) / 2.0
 
-    # The lip-depth dimension is vertical.  Treat it as the outside diameter
-    # of a downward-facing terminal curl localized at the mouth edge.  This is
-    # intentionally a simple physical model, not a claim about exact tooling.
+    # Base U shell, open at the top.
+    outer = _rect_profile_yz(w, h)
+    inner = _rect_profile_yz(max(w - 2 * t, 0.1), max(h - t, 0.1))
+    inner.translate(App.Vector(0, t, t))
+    base_face = outer.cut(inner)
+    solid = base_face.extrude(App.Vector(L, 0, 0))
+
+    # Add the horizontal shoulders up to the mouth edges.
+    left_shoulder = Part.makeBox(L, max(side_projection - t, 0.0), t)
+    left_shoulder.Placement = App.Placement(App.Vector(0, t, h - t), App.Rotation())
+    right_shoulder = Part.makeBox(L, max(side_projection - t, 0.0), t)
+    right_shoulder.Placement = App.Placement(
+        App.Vector(0, w - side_projection, h - t), App.Rotation()
+    )
+    solid = solid.fuse(left_shoulder).fuse(right_shoulder)
+
+    # Terminal curls: annular half-cylinders in the YZ section, extruded along X.
+    # Treat lip_depth as the outside diameter of the curl.  Keep the published
+    # mouth opening untouched: each curl develops downward from its mouth edge.
     r_out = lip_depth / 2.0
     r_in = r_out - t
     if r_in <= 0.0:
         raise ValueError("lip depth is too small for requested material thickness")
 
-    # Shoulder/curl crown is the published overall height, so the formed lip
-    # never grows the section beyond H.
-    z_c = h - r_out
-
-    # Mouth opening is the clear horizontal throat between the two inward
-    # shoulders; the curls develop downward from those edges rather than
-    # closing the throat further.
+    zc = h - r_out
     y_left = side_projection
     y_right = w - side_projection
 
-    edges = []
-    def line(y1, z1, y2, z2):
-        if abs(y2-y1) < 1e-9 and abs(z2-z1) < 1e-9:
-            return
-        edges.append(Part.makeLine(App.Vector(0,y1,z1), App.Vector(0,y2,z2)))
+    def half_annulus(cy: float, inward_sign: float) -> Part.Shape:
+        # Build a 2D half-annulus in YZ and extrude it.  The diameter lies on
+        # the vertical line y=cy; the arc bulges inward into the channel.
+        yo = cy + inward_sign * r_out
+        yi = cy + inward_sign * r_in
+        edges = [
+            Part.Arc(
+                App.Vector(0, cy, h),
+                App.Vector(0, yo, zc),
+                App.Vector(0, cy, h - 2.0 * r_out),
+            ).toShape(),
+            Part.makeLine(
+                App.Vector(0, cy, h - 2.0 * r_out),
+                App.Vector(0, cy, h - 2.0 * r_in),
+            ),
+            Part.Arc(
+                App.Vector(0, cy, h - 2.0 * r_in),
+                App.Vector(0, yi, zc),
+                App.Vector(0, cy, h),
+            ).toShape(),
+        ]
+        wire = Part.Wire(edges)
+        face = Part.Face(wire)
+        return face.extrude(App.Vector(L, 0, 0))
 
-    def arc3(y1,z1,ym,zm,y2,z2):
-        edges.append(Part.Arc(
-            App.Vector(0,y1,z1),
-            App.Vector(0,ym,zm),
-            App.Vector(0,y2,z2),
-        ).toShape())
+    left_curl = half_annulus(y_left, +1.0)
+    right_curl = half_annulus(y_right, -1.0)
+    solid = solid.fuse(left_curl).fuse(right_curl)
 
-    # Walk the material boundary counter-clockwise.  The web/sidewalls remain
-    # sharp-cornered for now; ordinary bend radii are a separate refinement.
-    line(0.0, 0.0, w, 0.0)
-    line(w, 0.0, w, h)
-    line(w, h, y_right, h)
-
-    # Right curl: outer crown -> inner/downward tip -> inner crown.
-    arc3(
-        y_right, h,
-        y_right - r_out, z_c,
-        y_right, h - 2.0*r_out,
-    )
-    line(y_right, h - 2.0*r_out, y_right, h - 2.0*r_in)
-    arc3(
-        y_right, h - 2.0*r_in,
-        y_right - r_in, z_c,
-        y_right, h - t,
-    )
-
-    # Interior right wall, bottom web, interior left wall.
-    line(y_right, h - t, w - t, h - t)
-    line(w - t, h - t, w - t, t)
-    line(w - t, t, t, t)
-    line(t, t, t, h - t)
-    line(t, h - t, y_left, h - t)
-
-    # Left curl mirrors the right.
-    arc3(
-        y_left, h - t,
-        y_left + r_in, z_c,
-        y_left, h - 2.0*r_in,
-    )
-    line(y_left, h - 2.0*r_in, y_left, h - 2.0*r_out)
-    arc3(
-        y_left, h - 2.0*r_out,
-        y_left + r_out, z_c,
-        y_left, h,
-    )
-
-    line(y_left, h, 0.0, h)
-    line(0.0, h, 0.0, 0.0)
-
-    wire = Part.Wire(edges)
-    if not wire.isClosed():
-        raise RuntimeError("lipped-channel cross-section wire is not closed")
-
-    face = Part.Face(wire)
-    if face.isNull() or not face.isValid():
-        raise RuntimeError("lipped-channel cross-section face is invalid")
-
-    solid = face.extrude(App.Vector(L, 0, 0))
     if solid.isNull() or not solid.isValid():
         raise RuntimeError("lipped-channel extrusion produced invalid solid")
+
+    # Normalize boolean result into a single solid where possible.
+    if getattr(solid, "Solids", None) and len(solid.Solids) == 1:
+        solid = solid.Solids[0]
+
     return solid
 
