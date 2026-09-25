@@ -32,11 +32,11 @@
             "in": 0.875,
             "mm": 22.225
           },
-          "lip_tip_gap": {
+          "lip_depth": {
             "in": 0.25,
             "mm": 6.35
           },
-          "lip_model": "symmetric_semicircular_lip"
+          "lip_model": "vertical_curl_from_opening_edge"
         }
       },
       "finishes": [
@@ -144,11 +144,11 @@
             "in": 0.875,
             "mm": 22.225
           },
-          "lip_tip_gap": {
+          "lip_depth": {
             "in": 0.28125,
             "mm": 7.14375
           },
-          "lip_model": "symmetric_semicircular_lip"
+          "lip_model": "vertical_curl_from_opening_edge"
         }
       },
       "mass": {
