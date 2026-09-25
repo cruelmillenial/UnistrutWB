@@ -13,7 +13,7 @@ for profile_id in ("P1000", "P4100"):
     spec = profile["geometry"]["profile_spec"]
     print(profile_id)
     print("  mouth_opening_mm:", spec.get("mouth_opening", {}).get("mm"))
-    print("  lip_tip_gap_mm:", spec.get("lip_tip_gap", {}).get("mm"))
+    print("  lip_depth_mm:", spec.get("lip_depth", {}).get("mm"))
     print(
         "  BB:",
         shape.BoundBox.XLength,
@@ -117,7 +117,7 @@ for profile_id, target in inverse_targets.items():
     depth_mm = float(geom["height"]["mm"])
     t_mm = float(spec["t"]["mm"])
     opening_mm = float(spec["mouth_opening"]["mm"])
-    gap_mm = float(spec["lip_tip_gap"]["mm"])
+    lip_depth_mm = float(spec["lip_depth"]["mm"])
 
     # For a uniform-thickness formed strip, A/t is the area-equivalent
     # developed centerline length. This is independent of the current OCC
@@ -130,15 +130,15 @@ for profile_id, target in inverse_targets.items():
     developed_from_model_mm = actual_area_mm2 / t_mm
 
     side_projection_mm = (width_mm - opening_mm) / 2.0
-    tip_projection_mm = (opening_mm - gap_mm) / 2.0
+    tip_projection_mm = (opening_mm - lip_depth_mm) / 2.0
     naive_semicircle_radius_mm = tip_projection_mm / 2.0
 
     print(profile_id)
     print("  width_mm:", width_mm, "depth_mm:", depth_mm, "thickness_mm:", t_mm)
-    print("  opening_mm:", opening_mm, "gap_mm:", gap_mm)
+    print("  opening_mm:", opening_mm, "lip_depth_mm:", lip_depth_mm)
     print("  side_projection_mm:", side_projection_mm)
     print("  tip_projection_mm:", tip_projection_mm)
-    print("  old_naive_semicircle_radius_mm:", naive_semicircle_radius_mm)
+    print("  old_naive_lip_depth_radius_mm:", naive_semicircle_radius_mm)
     print("  published_area_mm2:", published_area_mm2)
     print("  developed_length_from_area_mm:", developed_from_area_mm)
     print("  model_area_mm2:", actual_area_mm2)
@@ -219,7 +219,7 @@ def build_parametric_candidate(profile, *, lip_radius_mm, wall_relief_mm):
     # Diagnostic inverse-fit family:
     # - lip_radius_mm replaces the old radius implied purely from O/G
     # - wall_relief_mm shortens the effective vertical web before the curl,
-    #   moving steel downward while preserving width/opening/gap.
+    #   moving steel downward while preserving width/opening/lip_depth.
     #
     # This is not yet the production geometry model. It is deliberately a
     # minimal two-parameter family used to determine whether those degrees of
@@ -230,7 +230,7 @@ def build_parametric_candidate(profile, *, lip_radius_mm, wall_relief_mm):
     h = float(geom["height"]["mm"])
     t = float(spec["t"]["mm"])
     opening = float(spec["mouth_opening"]["mm"])
-    gap = float(spec["lip_tip_gap"]["mm"])
+    lip_depth = float(spec["lip_depth"]["mm"])
 
     if lip_radius_mm <= t / 2.0:
         return None
@@ -240,7 +240,7 @@ def build_parametric_candidate(profile, *, lip_radius_mm, wall_relief_mm):
     r_out = r_mid + t / 2.0
 
     side_projection = (w - opening) / 2.0
-    tip_projection = (opening - gap) / 2.0
+    tip_projection = lip_depth
 
     # Preserve the published lateral tip constraint. If the selected radius
     # cannot reach the tip without a negative tangent leg, reject it.
@@ -337,8 +337,8 @@ for profile_id, target in grid_targets.items():
     spec = profile["geometry"]["profile_spec"]
     t = float(spec["t"]["mm"])
     opening = float(spec["mouth_opening"]["mm"])
-    gap = float(spec["lip_tip_gap"]["mm"])
-    max_r = (opening - gap) / 4.0
+    lip_depth = float(spec["lip_depth"]["mm"])
+    max_r = lip_depth / 2.0
 
     radius_steps = 16
     relief_steps = 16
@@ -397,7 +397,7 @@ def build_parametric_candidate_v2(profile, *, lip_radius_mm, wall_relief_mm, cur
     h = float(geom["height"]["mm"])
     t = float(spec["t"]["mm"])
     opening = float(spec["mouth_opening"]["mm"])
-    gap = float(spec["lip_tip_gap"]["mm"])
+    lip_depth = float(spec["lip_depth"]["mm"])
 
     if lip_radius_mm <= t / 2.0:
         return None
@@ -409,7 +409,7 @@ def build_parametric_candidate_v2(profile, *, lip_radius_mm, wall_relief_mm, cur
     r_out = r_mid + t / 2.0
 
     side_projection = (w - opening) / 2.0
-    tip_projection = (opening - gap) / 2.0
+    tip_projection = lip_depth
 
     theta = math.radians(float(curl_sweep_deg))
     lateral_from_arc = r_mid * math.sin(theta)
@@ -513,8 +513,8 @@ for profile_id, target in fit_targets.items():
     spec = profile["geometry"]["profile_spec"]
     t = float(spec["t"]["mm"])
     opening = float(spec["mouth_opening"]["mm"])
-    gap = float(spec["lip_tip_gap"]["mm"])
-    max_r = (opening-gap)/4.0
+    lip_depth = float(spec["lip_depth"]["mm"])
+    max_r = lip_depth/2.0
 
     best = None
     valid_count = 0
@@ -576,7 +576,7 @@ def trace_parametric_candidate(profile_id, *, lip_radius_mm, wall_relief_mm, cur
     h = float(geom["height"]["mm"])
     t = float(spec["t"]["mm"])
     opening = float(spec["mouth_opening"]["mm"])
-    gap = float(spec["lip_tip_gap"]["mm"])
+    lip_depth = float(spec["lip_depth"]["mm"])
 
     print(profile_id)
     print("  params:", {"lip_radius_mm": lip_radius_mm, "wall_relief_mm": wall_relief_mm, "curl_sweep_deg": curl_sweep_deg})
@@ -586,7 +586,7 @@ def trace_parametric_candidate(profile_id, *, lip_radius_mm, wall_relief_mm, cur
         r_in = r_mid - t/2.0
         r_out = r_mid + t/2.0
         side_projection = (w-opening)/2.0
-        tip_projection = (opening-gap)/2.0
+        tip_projection = (opening-lip_depth)/2.0
         theta = math.radians(float(curl_sweep_deg))
         lateral_from_arc = r_mid * math.sin(theta)
         tangent_leg = tip_projection - lateral_from_arc
@@ -656,13 +656,13 @@ def trace_candidate_edges(profile_id, *, lip_radius_mm, wall_relief_mm, curl_swe
     h = float(geom["height"]["mm"])
     t = float(spec["t"]["mm"])
     opening = float(spec["mouth_opening"]["mm"])
-    gap = float(spec["lip_tip_gap"]["mm"])
+    lip_depth = float(spec["lip_depth"]["mm"])
 
     r_mid = float(lip_radius_mm)
     r_in = r_mid - t/2.0
     r_out = r_mid + t/2.0
     side_projection = (w-opening)/2.0
-    tip_projection = (opening-gap)/2.0
+    tip_projection = (opening-lip_depth)/2.0
     theta = math.radians(float(curl_sweep_deg))
     tangent_leg = max(0.0, tip_projection - r_mid*math.sin(theta))
     z_top = h - float(wall_relief_mm)
@@ -741,13 +741,13 @@ def trace_builder_stage(profile_id, *, lip_radius_mm, wall_relief_mm, curl_sweep
     h = float(geom["height"]["mm"])
     t = float(spec["t"]["mm"])
     opening = float(spec["mouth_opening"]["mm"])
-    gap = float(spec["lip_tip_gap"]["mm"])
+    lip_depth = float(spec["lip_depth"]["mm"])
 
     r_mid = float(lip_radius_mm)
     r_in = r_mid - t/2.0
     r_out = r_mid + t/2.0
     side_projection = (w-opening)/2.0
-    tip_projection = (opening-gap)/2.0
+    tip_projection = (opening-lip_depth)/2.0
     theta = math.radians(float(curl_sweep_deg))
     tangent_leg = max(0.0, tip_projection - r_mid*math.sin(theta))
     z_top = h - float(wall_relief_mm)
@@ -844,7 +844,7 @@ trace_builder_stage("P4100",lip_radius_mm=3.96875,wall_relief_mm=1.934765625,cur
 
 print("\nTHREE-PARAMETER EDGE-JOIN GAPS")
 
-def trace_edge_join_gaps(profile_id, *, lip_radius_mm, wall_relief_mm, curl_sweep_deg):
+def trace_edge_join_lip_depths(profile_id, *, lip_radius_mm, wall_relief_mm, curl_sweep_deg):
     profile = cat.get_profile(profile_id)
     geom = profile["geometry"]
     spec = geom["profile_spec"]
@@ -852,12 +852,12 @@ def trace_edge_join_gaps(profile_id, *, lip_radius_mm, wall_relief_mm, curl_swee
     h = float(geom["height"]["mm"])
     t = float(spec["t"]["mm"])
     opening = float(spec["mouth_opening"]["mm"])
-    gap = float(spec["lip_tip_gap"]["mm"])
+    lip_depth = float(spec["lip_depth"]["mm"])
     r_mid = float(lip_radius_mm)
     r_in = r_mid - t/2.0
     r_out = r_mid + t/2.0
     side_projection = (w-opening)/2.0
-    tip_projection = (opening-gap)/2.0
+    tip_projection = (opening-lip_depth)/2.0
     theta = math.radians(float(curl_sweep_deg))
     tangent_leg = max(0.0, tip_projection-r_mid*math.sin(theta))
     z_top = h-float(wall_relief_mm)
@@ -909,16 +909,16 @@ def trace_edge_join_gaps(profile_id, *, lip_radius_mm, wall_relief_mm, curl_swee
     line("left_outer_web",0,z_top,0,0)
 
     print(profile_id)
-    max_gap=0.0
+    max_lip_depth=0.0
     for i,e in enumerate(edges):
         n=(i+1)%len(edges)
-        gap=(e.Vertexes[-1].Point-edges[n].Vertexes[0].Point).Length
-        max_gap=max(max_gap,gap)
-        if gap > 1e-7:
-            print(" ",labels[i],"->",labels[n],"gap_mm:",gap,
+        lip_depth=(e.Vertexes[-1].Point-edges[n].Vertexes[0].Point).Length
+        max_lip_depth=max(max_lip_depth,lip_depth)
+        if lip_depth > 1e-7:
+            print(" ",labels[i],"->",labels[n],"lip_depth_mm:",lip_depth,
                   "from:",tuple(e.Vertexes[-1].Point),
                   "to:",tuple(edges[n].Vertexes[0].Point))
-    print("  max_join_gap_mm:",max_gap)
+    print("  max_join_lip_depth_mm:",max_lip_depth)
 
-trace_edge_join_gaps("P1000",lip_radius_mm=3.7703125,wall_relief_mm=3.375,curl_sweep_deg=90.0)
-trace_edge_join_gaps("P4100",lip_radius_mm=3.96875,wall_relief_mm=1.934765625,curl_sweep_deg=90.0)
+trace_edge_join_lip_depths("P1000",lip_radius_mm=3.7703125,wall_relief_mm=3.375,curl_sweep_deg=90.0)
+trace_edge_join_lip_depths("P4100",lip_radius_mm=3.96875,wall_relief_mm=1.934765625,curl_sweep_deg=90.0)
