@@ -131,9 +131,9 @@ def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simpl
         lip_mm = float(spec["lip_return"]["mm"])
 
         mouth = spec.get("mouth_opening") or {}
-        gap = spec.get("lip_tip_gap") or {}
+        lip_depth = spec.get("lip_depth") or {}
         mouth_mm = mouth.get("mm")
-        gap_mm = gap.get("mm")
+        lip_depth_mm = lip_depth.get("mm")
 
         solid = build_u_channel_lipped(
             width_mm=w,
@@ -142,7 +142,7 @@ def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simpl
             lip_mm=lip_mm,
             length_mm=length_mm,
             mouth_opening_mm=float(mouth_mm) if mouth_mm is not None else None,
-            lip_tip_gap_mm=float(gap_mm) if gap_mm is not None else None,
+            lip_depth_mm=float(lip_depth_mm) if lip_depth_mm is not None else None,
         )
 
         # --- Piercing / slots (MVP): apply after builder returns solid
@@ -211,22 +211,20 @@ def build_u_channel_lipped(
     lip_mm: float,
     length_mm: float,
     mouth_opening_mm: float | None = None,
-    lip_tip_gap_mm: float | None = None,
+    lip_depth_mm: float | None = None,
 ) -> Part.Shape:
     """
     Lipped U-channel, extruded along +X.
 
     Rich-geometry path:
-    - derive lip curl radius from mouth opening and tip gap
-    - construct one closed 2D material boundary in the YZ plane
-    - make a single Part.Face
-    - extrude that face along +X
+    - preserve the published mouth opening as the clear throat
+    - interpret the secondary lip dimension as vertical lip depth
+    - model each terminal return as a localized constant-thickness half-circle
+      attached to the inward shoulder edge
+    - keep the entire formed section within the published width/depth envelope
 
-    The lip radius remains an explicit modeling hypothesis derived from the
-    ETL contract, not manufacturer-specified bend-radius data.
-
-    Profiles without mouth/tip dimensions keep the legacy rectangular-return
-    fallback so partially upgraded catalog entries remain usable.
+    Profiles without mouth/lip-depth dimensions retain the legacy rectangular
+    return fallback.
     """
     w = float(width_mm)
     h = float(depth_mm)
@@ -246,134 +244,96 @@ def build_u_channel_lipped(
 
         max_lip = max((w - 2 * t) / 2.0 - 0.1, 0.0)
         lip_eff = min(lip, max_lip)
-
         left = Part.makeBox(L, lip_eff, t)
-        left.Placement = App.Placement(
-            App.Vector(0, t, h - t),
-            App.Rotation(),
-        )
+        left.Placement = App.Placement(App.Vector(0, t, h - t), App.Rotation())
         right = Part.makeBox(L, lip_eff, t)
-        right.Placement = App.Placement(
-            App.Vector(0, w - t - lip_eff, h - t),
-            App.Rotation(),
-        )
+        right.Placement = App.Placement(App.Vector(0, w - t - lip_eff, h - t), App.Rotation())
         return solid.fuse(left).fuse(right)
 
-    if mouth_opening_mm is None or lip_tip_gap_mm is None:
+    if mouth_opening_mm is None or lip_depth_mm is None:
         return legacy_rectangular()
 
     opening = float(mouth_opening_mm)
-    gap = float(lip_tip_gap_mm)
-    if not (0.0 < gap < opening < w):
-        raise ValueError(
-            "invalid lipped-channel geometry: require 0 < lip_tip_gap < "
-            "mouth_opening < width"
-        )
+    lip_depth = float(lip_depth_mm)
+    if not (0.0 < opening < w):
+        raise ValueError("invalid lipped-channel geometry: require 0 < mouth_opening < width")
+    if lip_depth <= t:
+        raise ValueError("invalid lipped-channel geometry: lip depth must exceed thickness")
 
     side_projection = (w - opening) / 2.0
-    tip_projection = (opening - gap) / 2.0
-    r_mid = tip_projection / 2.0
 
-    if r_mid <= t / 2.0:
-        raise ValueError(
-            "derived lip radius is too small for requested material thickness"
-        )
+    # The lip-depth dimension is vertical.  Treat it as the outside diameter
+    # of a downward-facing terminal curl localized at the mouth edge.  This is
+    # intentionally a simple physical model, not a claim about exact tooling.
+    r_out = lip_depth / 2.0
+    r_in = r_out - t
+    if r_in <= 0.0:
+        raise ValueError("lip depth is too small for requested material thickness")
 
-    r_in = r_mid - t / 2.0
-    r_out = r_mid + t / 2.0
+    # Shoulder/curl crown is the published overall height, so the formed lip
+    # never grows the section beyond H.
+    z_c = h - r_out
 
-    # Outer material boundary follows the overall envelope.
-    y_lo = 0.0
-    y_hi = w
-    z_lo = 0.0
-    z_hi = h
+    # Mouth opening is the clear horizontal throat between the two inward
+    # shoulders; the curls develop downward from those edges rather than
+    # closing the throat further.
+    y_left = side_projection
+    y_right = w - side_projection
 
-    # Approximate tangent locations for the curled return, symmetric about the
-    # channel centerline. The mouth datum sets the curl shoulder; the tip-gap
-    # datum sets the inner-most lip tips.
-    y_left_mouth = side_projection
-    y_right_mouth = w - side_projection
-    y_left_tip_mid = (w - gap) / 2.0
-    y_right_tip_mid = (w + gap) / 2.0
-
-    # Curl center positions are derived so the centerline arc spans 180 deg
-    # from the top shoulder to the inward/downward tip.
-    c_left_y = y_left_mouth + r_mid
-    c_right_y = y_right_mouth - r_mid
-    c_z = z_hi - r_mid
-
-    # Build the boundary explicitly. Start at lower-left outer corner and walk
-    # counter-clockwise around the material, including outer curl surfaces,
-    # then return along the inner surfaces.
     edges = []
-
     def line(y1, z1, y2, z2):
-        edges.append(
-            Part.makeLine(
-                App.Vector(0, y1, z1),
-                App.Vector(0, y2, z2),
-            )
-        )
+        if abs(y2-y1) < 1e-9 and abs(z2-z1) < 1e-9:
+            return
+        edges.append(Part.makeLine(App.Vector(0,y1,z1), App.Vector(0,y2,z2)))
 
-    def arc3(y1, z1, ym, zm, y2, z2):
-        edges.append(
-            Part.Arc(
-                App.Vector(0, y1, z1),
-                App.Vector(0, ym, zm),
-                App.Vector(0, y2, z2),
-            ).toShape()
-        )
+    def arc3(y1,z1,ym,zm,y2,z2):
+        edges.append(Part.Arc(
+            App.Vector(0,y1,z1),
+            App.Vector(0,ym,zm),
+            App.Vector(0,y2,z2),
+        ).toShape())
 
-    # ---- outer boundary
-    line(y_lo, z_lo, y_hi, z_lo)
-    line(y_hi, z_lo, y_hi, z_hi)
-    line(y_hi, z_hi, c_right_y, z_hi)
+    # Walk the material boundary counter-clockwise.  The web/sidewalls remain
+    # sharp-cornered for now; ordinary bend radii are a separate refinement.
+    line(0.0, 0.0, w, 0.0)
+    line(w, 0.0, w, h)
+    line(w, h, y_right, h)
 
-    # Right outer semicircle: top shoulder -> inward/downward outer tip.
+    # Right curl: outer crown -> inner/downward tip -> inner crown.
     arc3(
-        c_right_y, z_hi,
-        c_right_y - r_out / 1.41421356237, c_z + r_out / 1.41421356237,
-        c_right_y - r_out, c_z,
+        y_right, h,
+        y_right - r_out, z_c,
+        y_right, h - 2.0*r_out,
+    )
+    line(y_right, h - 2.0*r_out, y_right, h - 2.0*r_in)
+    arc3(
+        y_right, h - 2.0*r_in,
+        y_right - r_in, z_c,
+        y_right, h - t,
     )
 
-    # Bridge outer tip to inner tip at the free edge.
-    line(c_right_y - r_out, c_z, c_right_y - r_in, c_z)
-
-    # Right inner semicircle back to the inner shoulder.
-    arc3(
-        c_right_y - r_in, c_z,
-        c_right_y - r_in / 1.41421356237, c_z + r_in / 1.41421356237,
-        c_right_y, c_z + r_in,
-    )
-
-    # Inner right wall down to inside-bottom.
-    line(c_right_y, c_z + r_in, w - t, z_hi - t)
-    line(w - t, z_hi - t, w - t, t)
+    # Interior right wall, bottom web, interior left wall.
+    line(y_right, h - t, w - t, h - t)
+    line(w - t, h - t, w - t, t)
     line(w - t, t, t, t)
-    line(t, t, t, z_hi - t)
+    line(t, t, t, h - t)
+    line(t, h - t, y_left, h - t)
 
-    # Inner left shoulder to left inner curl.
-    line(t, z_hi - t, c_left_y, c_z + r_in)
-
-    # Left inner semicircle: inner shoulder -> inward/downward tip.
+    # Left curl mirrors the right.
     arc3(
-        c_left_y, c_z + r_in,
-        c_left_y + r_in / 1.41421356237, c_z + r_in / 1.41421356237,
-        c_left_y + r_in, c_z,
+        y_left, h - t,
+        y_left + r_in, z_c,
+        y_left, h - 2.0*r_in,
+    )
+    line(y_left, h - 2.0*r_in, y_left, h - 2.0*r_out)
+    arc3(
+        y_left, h - 2.0*r_out,
+        y_left + r_out, z_c,
+        y_left, h,
     )
 
-    # Bridge inner tip to outer tip at free edge.
-    line(c_left_y + r_in, c_z, c_left_y + r_out, c_z)
-
-    # Left outer semicircle back to outer top shoulder.
-    arc3(
-        c_left_y + r_out, c_z,
-        c_left_y + r_out / 1.41421356237, c_z + r_out / 1.41421356237,
-        c_left_y, z_hi,
-    )
-
-    line(c_left_y, z_hi, y_lo, z_hi)
-    line(y_lo, z_hi, y_lo, z_lo)
+    line(y_left, h, 0.0, h)
+    line(0.0, h, 0.0, 0.0)
 
     wire = Part.Wire(edges)
     if not wire.isClosed():
