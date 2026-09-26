@@ -216,12 +216,14 @@ def build_u_channel_lipped(
     """
     Lipped U-channel, extruded along +X.
 
-    Rich geometry keeps the published mouth opening as the clear throat and
-    interprets lip_depth as a vertical terminal-curl dimension.  Build the
-    entire section as one closed 2D face, but use a deliberately simple
-    rectangular return for the terminal lip so OCC gets a robust manifold
-    solid. This is a temporary test geometry: correct semantics first,
-    rounded curl later.
+    Stable checkpoint geometry:
+    - published mouth opening remains the clear throat
+    - lip_depth is vertical
+    - section is represented as a union of simple rectangular solids only
+    - no arcs, no self-intersecting face wires, no tangent booleans
+
+    This is intentionally a topology-safe test geometry so the GUI and smoke
+    diagnostics work again before rounded curls are reintroduced.
     """
     w = float(width_mm)
     h = float(depth_mm)
@@ -230,23 +232,23 @@ def build_u_channel_lipped(
     L = float(length_mm)
 
     def legacy_rectangular() -> Part.Shape:
-        outer = _rect_profile_yz(w, h)
-        inner = _rect_profile_yz(max(w - 2 * t, 0.1), max(h - t, 0.1))
-        inner.translate(App.Vector(0, t, t))
-        face = outer.cut(inner)
-        solid = face.extrude(App.Vector(L, 0, 0))
+        web = Part.makeBox(L, w, t)
+        left_wall = Part.makeBox(L, t, max(h - t, 0.1))
+        left_wall.Placement = App.Placement(App.Vector(0, 0, t), App.Rotation())
+        right_wall = Part.makeBox(L, t, max(h - t, 0.1))
+        right_wall.Placement = App.Placement(App.Vector(0, w - t, t), App.Rotation())
+        solid = web.fuse(left_wall).fuse(right_wall)
 
-        if lip <= 0:
-            return solid
+        if lip > 0:
+            max_lip = max((w - 2*t)/2.0 - 0.1, 0.0)
+            lip_eff = min(lip, max_lip)
+            left_lip = Part.makeBox(L, lip_eff, t)
+            left_lip.Placement = App.Placement(App.Vector(0, t, h - t), App.Rotation())
+            right_lip = Part.makeBox(L, lip_eff, t)
+            right_lip.Placement = App.Placement(App.Vector(0, w - t - lip_eff, h - t), App.Rotation())
+            solid = solid.fuse(left_lip).fuse(right_lip)
 
-        max_lip = max((w - 2 * t) / 2.0 - 0.1, 0.0)
-        lip_eff = min(lip, max_lip)
-        left = Part.makeBox(L, lip_eff, t)
-        left.Placement = App.Placement(App.Vector(0, t, h - t), App.Rotation())
-        right = Part.makeBox(L, lip_eff, t)
-        right.Placement = App.Placement(App.Vector(0, w - t - lip_eff, h - t), App.Rotation())
-        fused = solid.fuse(left).fuse(right)
-        return fused.Solids[0] if len(fused.Solids) == 1 else fused
+        return solid.removeSplitter()
 
     if mouth_opening_mm is None or lip_depth_mm is None:
         return legacy_rectangular()
@@ -255,48 +257,61 @@ def build_u_channel_lipped(
     lip_depth = float(lip_depth_mm)
     if not (0.0 < opening < w):
         raise ValueError("invalid lipped-channel geometry: require 0 < mouth_opening < width")
-    if lip_depth <= t:
-        raise ValueError("invalid lipped-channel geometry: lip depth must exceed thickness")
+    if lip_depth <= 0.0:
+        raise ValueError("invalid lipped-channel geometry: lip depth must be positive")
 
     side = (w - opening) / 2.0
-    y_left_mouth = side
-    y_right_mouth = w - side
-    z_tip = h - lip_depth
+    if side < t:
+        raise ValueError("mouth opening leaves insufficient shoulder width")
 
-    # Closed material boundary. The 7/8 in datum remains the mouth opening;
-    # lip_depth is vertical.  The terminal returns are intentionally square
-    # for this checkpoint so we can get a trustworthy solid back into FreeCAD
-    # before reintroducing rounded curl topology.
-    pts = [
-        App.Vector(0, 0.0, 0.0),
-        App.Vector(0, w, 0.0),
-        App.Vector(0, w, h),
-        App.Vector(0, y_right_mouth, h),
-        App.Vector(0, y_right_mouth, z_tip),
-        App.Vector(0, y_right_mouth - t, z_tip),
-        App.Vector(0, y_right_mouth - t, h - t),
-        App.Vector(0, w - t, h - t),
-        App.Vector(0, w - t, t),
-        App.Vector(0, t, t),
-        App.Vector(0, t, h - t),
-        App.Vector(0, y_left_mouth + t, h - t),
-        App.Vector(0, y_left_mouth + t, z_tip),
-        App.Vector(0, y_left_mouth, z_tip),
-        App.Vector(0, y_left_mouth, h),
-        App.Vector(0, 0.0, h),
-        App.Vector(0, 0.0, 0.0),
-    ]
+    # Build the channel from overlapping rectangular prisms.  Overlap by a
+    # small epsilon at joins so OCC sees volumetric intersections rather than
+    # zero-area/tangent contacts.
+    eps = min(0.05, t * 0.05)
 
-    wire = Part.Wire(Part.makePolygon(pts))
-    if not wire.isClosed():
-        raise RuntimeError("lipped-channel cross-section wire is not closed")
+    web = Part.makeBox(L, w, t)
 
-    face = Part.Face(wire)
-    if face.isNull() or not face.isValid():
-        raise RuntimeError("lipped-channel cross-section face is invalid")
+    left_wall = Part.makeBox(L, t, h - t + eps)
+    left_wall.Placement = App.Placement(App.Vector(0, 0, t - eps), App.Rotation())
 
-    solid = face.extrude(App.Vector(L, 0, 0))
+    right_wall = Part.makeBox(L, t, h - t + eps)
+    right_wall.Placement = App.Placement(App.Vector(0, w - t, t - eps), App.Rotation())
+
+    shoulder_len = side - t + eps
+    left_shoulder = Part.makeBox(L, shoulder_len, t)
+    left_shoulder.Placement = App.Placement(App.Vector(0, t - eps, h - t), App.Rotation())
+
+    right_shoulder = Part.makeBox(L, shoulder_len, t)
+    right_shoulder.Placement = App.Placement(
+        App.Vector(0, w - side, h - t), App.Rotation()
+    )
+
+    lip_len = min(lip_depth, h - t)
+    left_return = Part.makeBox(L, t, lip_len + eps)
+    left_return.Placement = App.Placement(
+        App.Vector(0, side - eps, h - lip_len), App.Rotation()
+    )
+
+    right_return = Part.makeBox(L, t, lip_len + eps)
+    right_return.Placement = App.Placement(
+        App.Vector(0, w - side, h - lip_len), App.Rotation()
+    )
+
+    solid = web
+    for piece in (
+        left_wall, right_wall,
+        left_shoulder, right_shoulder,
+        left_return, right_return,
+    ):
+        solid = solid.fuse(piece)
+
+    solid = solid.removeSplitter()
+
     if solid.isNull() or not solid.isValid():
         raise RuntimeError("lipped-channel extrusion produced invalid solid")
+
+    if getattr(solid, "Solids", None) and len(solid.Solids) == 1:
+        solid = solid.Solids[0]
+
     return solid
 
