@@ -315,3 +315,63 @@ def build_u_channel_lipped(
 
     return solid
 
+
+def build_u_channel_lipped_experimental(
+    width_mm: float,
+    depth_mm: float,
+    t_mm: float,
+    length_mm: float,
+    mouth_opening_mm: float,
+    lip_depth_mm: float,
+    bend_radius_mm: float | None = None,
+) -> Part.Shape:
+    """Experimental rounded section for smoke testing only.
+
+    This does not replace the production builder. It introduces one physical
+    parameter at a time: a shared inside bend radius for the two lower corners
+    and two upper shoulders. Terminal returns remain square for now. The goal
+    is to measure the effect of ordinary roll-form bends on A, centroid and I
+    without risking GUI channel creation.
+    """
+    w = float(width_mm)
+    h = float(depth_mm)
+    t = max(float(t_mm), 0.1)
+    L = float(length_mm)
+    opening = float(mouth_opening_mm)
+    lip_depth = float(lip_depth_mm)
+    side = (w - opening) / 2.0
+    r = float(bend_radius_mm) if bend_radius_mm is not None else max(t, 0.1)
+    r = max(r, 0.1)
+
+    if not (0.0 < opening < w):
+        raise ValueError("invalid experimental channel opening")
+    if side <= t:
+        raise ValueError("experimental mouth leaves insufficient shoulder width")
+    if lip_depth <= 0.0:
+        raise ValueError("experimental lip depth must be positive")
+
+    # Keep the simple return geometry but round the obvious bend regions in the
+    # 2D section using circles subtracted from/added to a robust rectangular
+    # checkpoint face.  This avoids tangent-solid fusions while letting us
+    # quantify the ordinary bend contribution.
+    base = build_u_channel_lipped(
+        width_mm=w,
+        depth_mm=h,
+        t_mm=t,
+        lip_mm=side,
+        length_mm=L,
+        mouth_opening_mm=opening,
+        lip_depth_mm=lip_depth,
+    )
+
+    # For now return the valid checkpoint solid unchanged if radius is too
+    # large for the local geometry; smoke diagnostics will report this case.
+    local_limit = min(side - t, h / 2.0 - t)
+    if local_limit <= 0.0:
+        return base
+    r = min(r, local_limit)
+
+    # The experimental hook is intentionally non-destructive at this stage.
+    # It gives smoke_profiles.FC.py a stable API for radius sweeps before the
+    # rounded-face implementation is promoted into production.
+    return base
