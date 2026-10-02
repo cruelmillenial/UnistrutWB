@@ -23,8 +23,8 @@ for profile_id in ("P1000", "P4100"):
     print("  V:", shape.Volume)
     print("  valid:", shape.isValid())
 
-# Legacy/fallback specimen: no mouth/tip dimensions, so rectangular returns
-# remain available for profiles not yet upgraded to the richer contract.
+# Legacy/fallback specimen: no mouth/lip-depth dimensions, so rectangular
+# returns remain available for profiles not yet upgraded to the richer contract.
 legacy = {
     "geometry": {
         "width": {"mm": 41.275},
@@ -94,7 +94,6 @@ for profile_id, target in published.items():
     print("  actual_centroid_z_mm:", actual_cz_mm)
     print("  centroid_delta_mm:", actual_cz_mm - published_cz_mm)
 
-
 print("\nINVERSE GEOMETRY CHECK")
 inverse_targets = {
     "P1000": {
@@ -103,8 +102,6 @@ inverse_targets = {
     },
     "P4100": {
         "area_in2": 0.290,
-        # Weight is intentionally omitted until a reviewed catalog value is
-        # wired into the bundled data/fixture.
     },
 }
 STEEL_DENSITY_LB_IN3 = 0.2836
@@ -119,9 +116,6 @@ for profile_id, target in inverse_targets.items():
     opening_mm = float(spec["mouth_opening"]["mm"])
     lip_depth_mm = float(spec["lip_depth"]["mm"])
 
-    # For a uniform-thickness formed strip, A/t is the area-equivalent
-    # developed centerline length. This is independent of the current OCC
-    # boundary construction and gives us a powerful inverse constraint.
     published_area_mm2 = target["area_in2"] * MM2_PER_IN2
     developed_from_area_mm = published_area_mm2 / t_mm
 
@@ -150,7 +144,6 @@ for profile_id, target in inverse_targets.items():
         print("  weight_delta_lb_per_ft:", weight_from_area - catalog_weight)
         print("  implied_density_lb_in3:", implied_density)
 
-
 print("\nFITNESS OBJECTIVE")
 fit_targets = {
     "P1000": {
@@ -172,15 +165,8 @@ IN4_TO_MM4 = MM_PER_IN ** 4
 for profile_id, target in fit_targets.items():
     profile = cat.get_profile(profile_id)
     shape = profiles.build_channel(profile, 1.0, mode="simple")
-
-    # Unit-length extrusion means Volume == section area in mm^2.
     area_mm2 = shape.Volume
     centroid_z_mm = shape.CenterOfMass.z
-
-    # FreeCAD solid inertia for a 1 mm extrusion is dominated in X by the
-    # section's in-plane distribution. For now report the principal moments
-    # directly as diagnostics; we will map them to catalog axes in the next
-    # iteration once the cross-section model itself is parameterized.
     moi = shape.MatrixOfInertia
     ixx_mm4 = moi.A11
     iyy_mm4 = moi.A22
@@ -196,8 +182,6 @@ for profile_id, target in fit_targets.items():
     print("  target_I11_mm4:", target["I11_in4"] * IN4_TO_MM4)
     print("  target_I22_mm4:", target["I22_in4"] * IN4_TO_MM4)
     print("  objective_seed:", area_err * area_err + centroid_err * centroid_err)
-
-
 
 print("\nFIT SUMMARY (corrected lip semantics)")
 for profile_id, target in fit_targets.items():
@@ -215,3 +199,23 @@ for profile_id, target in fit_targets.items():
     print("  I22_in4:", i22_in4, "target:", target["I22_in4"])
     print("  mouth_opening_mm:", profile["geometry"]["profile_spec"]["mouth_opening"]["mm"])
     print("  lip_depth_mm:", profile["geometry"]["profile_spec"]["lip_depth"]["mm"])
+
+print("\nEXPERIMENTAL BEND HOOK")
+for profile_id in ("P1000", "P4100"):
+    profile = cat.get_profile(profile_id)
+    geom = profile["geometry"]
+    spec = geom["profile_spec"]
+    experimental = profiles.build_u_channel_lipped_experimental(
+        width_mm=float(geom["width"]["mm"]),
+        depth_mm=float(geom["height"]["mm"]),
+        t_mm=float(spec["t"]["mm"]),
+        length_mm=1.0,
+        mouth_opening_mm=float(spec["mouth_opening"]["mm"]),
+        lip_depth_mm=float(spec["lip_depth"]["mm"]),
+        bend_radius_mm=float(spec["t"]["mm"]),
+    )
+    print(profile_id)
+    print("  valid:", experimental.isValid())
+    print("  area_in2:", experimental.Volume / MM2_PER_IN2)
+    print("  centroid_bottom_in:", experimental.CenterOfMass.z / MM_PER_IN)
+    print("  BB_height_mm:", experimental.BoundBox.ZLength)
