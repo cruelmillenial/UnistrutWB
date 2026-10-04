@@ -14,17 +14,10 @@ for profile_id in ("P1000", "P4100"):
     print(profile_id)
     print("  mouth_opening_mm:", spec.get("mouth_opening", {}).get("mm"))
     print("  lip_depth_mm:", spec.get("lip_depth", {}).get("mm"))
-    print(
-        "  BB:",
-        shape.BoundBox.XLength,
-        shape.BoundBox.YLength,
-        shape.BoundBox.ZLength,
-    )
+    print("  BB:", shape.BoundBox.XLength, shape.BoundBox.YLength, shape.BoundBox.ZLength)
     print("  V:", shape.Volume)
     print("  valid:", shape.isValid())
 
-# Legacy/fallback specimen: no mouth/lip-depth dimensions, so rectangular
-# returns remain available for profiles not yet upgraded to the richer contract.
 legacy = {
     "geometry": {
         "width": {"mm": 41.275},
@@ -40,182 +33,65 @@ legacy = {
 legacy_shape = profiles.build_channel(legacy, 1000.0, mode="simple")
 print("legacy fallback valid:", legacy_shape.isValid())
 
-print("\nSECTION VALIDATION")
-targets = {
-    "P1000": {
-        "area_in2": 0.555,
-        "centroid_bottom_in": 0.710,
-        "centroid_top_in": 0.915,
-    },
-    "P4100": {
-        "area_in2": 0.290,
-        "centroid_bottom_in": 0.333,
-        "centroid_top_in": 0.480,
-    },
-}
-
 MM_PER_IN = 25.4
 MM2_PER_IN2 = MM_PER_IN ** 2
-
-for profile_id, target in targets.items():
-    profile = cat.get_profile(profile_id)
-    shape = profiles.build_channel(profile, 1.0, mode="simple")
-    area_mm2 = shape.Volume
-    area_in2 = area_mm2 / MM2_PER_IN2
-    centroid_z_mm = shape.CenterOfMass.z
-    centroid_bottom_in = centroid_z_mm / MM_PER_IN
-    height_mm = float(profile["geometry"]["height"]["mm"])
-    centroid_top_in = (height_mm - centroid_z_mm) / MM_PER_IN
-    bb_h = shape.BoundBox.ZLength
-    print(profile_id)
-    print("  area_in2:", area_in2, "target:", target["area_in2"])
-    print("  area_error_pct:", 100.0 * (area_in2 - target["area_in2"]) / target["area_in2"])
-    print("  centroid_bottom_in:", centroid_bottom_in, "target:", target["centroid_bottom_in"])
-    print("  centroid_top_in:", centroid_top_in, "target:", target["centroid_top_in"])
-    print("  nominal_height_mm:", height_mm, "bb_height_mm:", bb_h, "delta_mm:", bb_h - height_mm)
-
-print("\nDIAGNOSTIC DELTAS")
-published = {
-    "P1000": {"area_in2": 0.555, "centroid_bottom_in": 0.710},
-    "P4100": {"area_in2": 0.290, "centroid_bottom_in": 0.333},
-}
-for profile_id, target in published.items():
-    profile = cat.get_profile(profile_id)
-    shape = profiles.build_channel(profile, 1.0, mode="simple")
-    actual_area_mm2 = shape.Volume
-    published_area_mm2 = target["area_in2"] * MM2_PER_IN2
-    actual_cz_mm = shape.CenterOfMass.z
-    published_cz_mm = target["centroid_bottom_in"] * MM_PER_IN
-    print(profile_id)
-    print("  published_area_mm2:", published_area_mm2)
-    print("  actual_area_mm2:", actual_area_mm2)
-    print("  excess_area_mm2:", actual_area_mm2 - published_area_mm2)
-    print("  published_centroid_z_mm:", published_cz_mm)
-    print("  actual_centroid_z_mm:", actual_cz_mm)
-    print("  centroid_delta_mm:", actual_cz_mm - published_cz_mm)
-
-print("\nINVERSE GEOMETRY CHECK")
-inverse_targets = {
-    "P1000": {
-        "area_in2": 0.555,
-        "weight_lb_per_ft": 1.89,
-    },
-    "P4100": {
-        "area_in2": 0.290,
-    },
-}
-STEEL_DENSITY_LB_IN3 = 0.2836
-
-for profile_id, target in inverse_targets.items():
-    profile = cat.get_profile(profile_id)
-    geom = profile["geometry"]
-    spec = geom["profile_spec"]
-    width_mm = float(geom["width"]["mm"])
-    depth_mm = float(geom["height"]["mm"])
-    t_mm = float(spec["t"]["mm"])
-    opening_mm = float(spec["mouth_opening"]["mm"])
-    lip_depth_mm = float(spec["lip_depth"]["mm"])
-
-    published_area_mm2 = target["area_in2"] * MM2_PER_IN2
-    developed_from_area_mm = published_area_mm2 / t_mm
-
-    shape = profiles.build_channel(profile, 1.0, mode="simple")
-    actual_area_mm2 = shape.Volume
-    developed_from_model_mm = actual_area_mm2 / t_mm
-
-    side_projection_mm = (width_mm - opening_mm) / 2.0
-
-    print(profile_id)
-    print("  width_mm:", width_mm, "depth_mm:", depth_mm, "thickness_mm:", t_mm)
-    print("  opening_mm:", opening_mm, "lip_depth_mm:", lip_depth_mm)
-    print("  side_projection_mm:", side_projection_mm)
-    print("  published_area_mm2:", published_area_mm2)
-    print("  developed_length_from_area_mm:", developed_from_area_mm)
-    print("  model_area_mm2:", actual_area_mm2)
-    print("  developed_length_from_model_mm:", developed_from_model_mm)
-    print("  developed_length_excess_mm:", developed_from_model_mm - developed_from_area_mm)
-
-    if "weight_lb_per_ft" in target:
-        catalog_weight = target["weight_lb_per_ft"]
-        weight_from_area = target["area_in2"] * 12.0 * STEEL_DENSITY_LB_IN3
-        implied_density = catalog_weight / (target["area_in2"] * 12.0)
-        print("  catalog_weight_lb_per_ft:", catalog_weight)
-        print("  weight_from_area_at_0.2836_lb_in3:", weight_from_area)
-        print("  weight_delta_lb_per_ft:", weight_from_area - catalog_weight)
-        print("  implied_density_lb_in3:", implied_density)
-
-print("\nFITNESS OBJECTIVE")
-fit_targets = {
-    "P1000": {
-        "area_in2": 0.555,
-        "centroid_bottom_in": 0.710,
-        "I11_in4": 0.185,
-        "I22_in4": 0.236,
-    },
-    "P4100": {
-        "area_in2": 0.290,
-        "centroid_bottom_in": 0.333,
-        "I11_in4": 0.026,
-        "I22_in4": 0.107,
-    },
-}
-
 IN4_TO_MM4 = MM_PER_IN ** 4
 
+fit_targets = {
+    "P1000": {"area_in2": 0.555, "centroid_bottom_in": 0.710, "I11_in4": 0.185, "I22_in4": 0.236},
+    "P4100": {"area_in2": 0.290, "centroid_bottom_in": 0.333, "I11_in4": 0.026, "I22_in4": 0.107},
+}
+
+print("\nCHECKPOINT BASELINE")
 for profile_id, target in fit_targets.items():
     profile = cat.get_profile(profile_id)
     shape = profiles.build_channel(profile, 1.0, mode="simple")
-    area_mm2 = shape.Volume
-    centroid_z_mm = shape.CenterOfMass.z
     moi = shape.MatrixOfInertia
-    ixx_mm4 = moi.A11
-    iyy_mm4 = moi.A22
-    izz_mm4 = moi.A33
-
-    area_err = (area_mm2 / MM2_PER_IN2 - target["area_in2"]) / target["area_in2"]
-    centroid_err = (centroid_z_mm / MM_PER_IN - target["centroid_bottom_in"]) / target["centroid_bottom_in"]
-
     print(profile_id)
-    print("  area_rel_error:", area_err)
-    print("  centroid_rel_error:", centroid_err)
-    print("  raw_MOI_mm4:", {"xx": ixx_mm4, "yy": iyy_mm4, "zz": izz_mm4})
-    print("  target_I11_mm4:", target["I11_in4"] * IN4_TO_MM4)
-    print("  target_I22_mm4:", target["I22_in4"] * IN4_TO_MM4)
-    print("  objective_seed:", area_err * area_err + centroid_err * centroid_err)
+    print("  valid:", shape.isValid())
+    print("  area_in2:", shape.Volume / MM2_PER_IN2, "target:", target["area_in2"])
+    print("  centroid_bottom_in:", shape.CenterOfMass.z / MM_PER_IN, "target:", target["centroid_bottom_in"])
+    print("  I11_in4:", moi.A22 / IN4_TO_MM4, "target:", target["I11_in4"])
+    print("  I22_in4:", moi.A33 / IN4_TO_MM4, "target:", target["I22_in4"])
 
-print("\nFIT SUMMARY (corrected lip semantics)")
+print("\nEXPERIMENTAL UPPER-SHOULDER BEND")
 for profile_id, target in fit_targets.items():
-    profile = cat.get_profile(profile_id)
-    shape = profiles.build_channel(profile, 1.0, mode="simple")
-    area_in2 = shape.Volume / MM2_PER_IN2
-    centroid_bottom_in = shape.CenterOfMass.z / MM_PER_IN
-    moi = shape.MatrixOfInertia
-    i11_in4 = moi.A22 / IN4_TO_MM4
-    i22_in4 = moi.A33 / IN4_TO_MM4
-    print(profile_id)
-    print("  area_in2:", area_in2, "target:", target["area_in2"])
-    print("  centroid_bottom_in:", centroid_bottom_in, "target:", target["centroid_bottom_in"])
-    print("  I11_in4:", i11_in4, "target:", target["I11_in4"])
-    print("  I22_in4:", i22_in4, "target:", target["I22_in4"])
-    print("  mouth_opening_mm:", profile["geometry"]["profile_spec"]["mouth_opening"]["mm"])
-    print("  lip_depth_mm:", profile["geometry"]["profile_spec"]["lip_depth"]["mm"])
-
-print("\nEXPERIMENTAL BEND HOOK")
-for profile_id in ("P1000", "P4100"):
     profile = cat.get_profile(profile_id)
     geom = profile["geometry"]
     spec = geom["profile_spec"]
-    experimental = profiles.build_u_channel_lipped_experimental(
-        width_mm=float(geom["width"]["mm"]),
-        depth_mm=float(geom["height"]["mm"]),
-        t_mm=float(spec["t"]["mm"]),
-        length_mm=1.0,
-        mouth_opening_mm=float(spec["mouth_opening"]["mm"]),
-        lip_depth_mm=float(spec["lip_depth"]["mm"]),
-        bend_radius_mm=float(spec["t"]["mm"]),
-    )
+    t = float(spec["t"]["mm"])
+    baseline = profiles.build_channel(profile, 1.0, mode="simple")
+    try:
+        experimental = profiles.build_u_channel_lipped_experimental(
+            width_mm=float(geom["width"]["mm"]),
+            depth_mm=float(geom["height"]["mm"]),
+            t_mm=t,
+            length_mm=1.0,
+            mouth_opening_mm=float(spec["mouth_opening"]["mm"]),
+            lip_depth_mm=float(spec["lip_depth"]["mm"]),
+            bend_radius_mm=t,
+        )
+    except Exception as exc:
+        print(profile_id)
+        print("  FAIL:", type(exc).__name__, str(exc))
+        continue
+
+    bmoi = baseline.MatrixOfInertia
+    emoi = experimental.MatrixOfInertia
+    base_area = baseline.Volume / MM2_PER_IN2
+    exp_area = experimental.Volume / MM2_PER_IN2
+    base_c = baseline.CenterOfMass.z / MM_PER_IN
+    exp_c = experimental.CenterOfMass.z / MM_PER_IN
+    base_i11 = bmoi.A22 / IN4_TO_MM4
+    exp_i11 = emoi.A22 / IN4_TO_MM4
+    base_i22 = bmoi.A33 / IN4_TO_MM4
+    exp_i22 = emoi.A33 / IN4_TO_MM4
+
     print(profile_id)
+    print("  bend_radius_mm:", t)
     print("  valid:", experimental.isValid())
-    print("  area_in2:", experimental.Volume / MM2_PER_IN2)
-    print("  centroid_bottom_in:", experimental.CenterOfMass.z / MM_PER_IN)
-    print("  BB_height_mm:", experimental.BoundBox.ZLength)
+    print("  BB_height_mm:", experimental.BoundBox.ZLength, "nominal:", float(geom["height"]["mm"]))
+    print("  area_in2:", exp_area, "delta_from_baseline:", exp_area - base_area, "target:", target["area_in2"])
+    print("  centroid_bottom_in:", exp_c, "delta_from_baseline:", exp_c - base_c, "target:", target["centroid_bottom_in"])
+    print("  I11_in4:", exp_i11, "delta_from_baseline:", exp_i11 - base_i11, "target:", target["I11_in4"])
+    print("  I22_in4:", exp_i22, "delta_from_baseline:", exp_i22 - base_i22, "target:", target["I22_in4"])
