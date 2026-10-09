@@ -275,6 +275,7 @@ def build_u_channel_lipped_experimental(
     lip_depth_mm: float,
     bend_radius_mm: float | None = None,
     lower_bend_radius_mm: float | None = None,
+    lip_bend_radius_mm: float | None = None,
 ) -> Part.Shape:
     """Experimental upper-shoulder bends using a centerline-style decomposition.
 
@@ -296,6 +297,12 @@ def build_u_channel_lipped_experimental(
     if lower_ri < 0.0:
         raise ValueError("lower bend radius cannot be negative")
     lower_ro = lower_ri + t
+    lip_ri = float(lip_bend_radius_mm) if lip_bend_radius_mm is not None else 0.0
+    if lip_ri < 0.0:
+        raise ValueError("lip bend radius cannot be negative")
+    lip_ro = lip_ri + t
+    if lip_ri > 0.0 and (lip_ro >= side-r_o or lip_depth <= lip_ro):
+        raise ValueError("lip bend cannot fit shoulder projection and lip depth")
 
     if not (0.0 < opening < w):
         raise ValueError("invalid experimental channel opening")
@@ -426,14 +433,64 @@ def build_u_channel_lipped_experimental(
     )
 
     lip_len = min(lip_depth, h-t)
-    left_return = Part.makeBox(L, t, lip_len+eps)
-    left_return.Placement = App.Placement(
-        App.Vector(0, side-eps, h-lip_len), App.Rotation()
-    )
-    right_return = Part.makeBox(L, t, lip_len+eps)
-    right_return.Placement = App.Placement(
-        App.Vector(0, w-side, h-lip_len), App.Rotation()
-    )
+    lip_bends = []
+    if lip_ri > 0.0:
+        # Concave inside transition, with the bend center BELOW the top of
+        # the horizontal flange.  Outer radius lip_ro, inner lip_ri.
+        # At lip end, the outer surface is the published mouth edge.
+        k = 0.7071067811865476
+        for cy, sign in ((side-lip_ro, 1.0), (w-side+lip_ro, -1.0)):
+            cz = h-lip_ro
+            outer = Part.Arc(
+                App.Vector(0, cy, h),
+                App.Vector(0, cy+sign*lip_ro*k, cz+lip_ro*k),
+                App.Vector(0, cy+sign*lip_ro, cz),
+            ).toShape()
+            cap_wall = Part.makeLine(
+                App.Vector(0, cy+sign*lip_ro, cz),
+                App.Vector(0, cy+sign*lip_ri, cz),
+            )
+            inner = Part.Arc(
+                App.Vector(0, cy+sign*lip_ri, cz),
+                App.Vector(0, cy+sign*lip_ri*k, cz+lip_ri*k),
+                App.Vector(0, cy, cz+lip_ri),
+            ).toShape()
+            cap_top = Part.makeLine(
+                App.Vector(0, cy, cz+lip_ri),
+                App.Vector(0, cy, h),
+            )
+            face = Part.Face(Part.Wire([outer, cap_wall, inner, cap_top]))
+            if face.isNull() or not face.isValid():
+                raise RuntimeError("experimental lip-bend face is invalid")
+            lip_bends.append(face.extrude(App.Vector(L,0,0)))
+
+        # Stop straight shoulders at the tangent to the rounded returns.
+        left_shoulder = Part.makeBox(L, side-lip_ro-left_shoulder_start+eps, t)
+        left_shoulder.Placement = App.Placement(
+            App.Vector(0, left_shoulder_start-eps, h-t), App.Rotation()
+        )
+        right_shoulder = Part.makeBox(L, side-lip_ro-left_shoulder_start+eps, t)
+        right_shoulder.Placement = App.Placement(
+            App.Vector(0, w-side+lip_ro, h-t), App.Rotation()
+        )
+        straight_lip = lip_len-lip_ro+eps
+        left_return = Part.makeBox(L,t,straight_lip)
+        left_return.Placement = App.Placement(
+            App.Vector(0,side-t,h-lip_len),App.Rotation()
+        )
+        right_return = Part.makeBox(L,t,straight_lip)
+        right_return.Placement = App.Placement(
+            App.Vector(0,w-side,h-lip_len),App.Rotation()
+        )
+    else:
+        left_return = Part.makeBox(L, t, lip_len+eps)
+        left_return.Placement = App.Placement(
+            App.Vector(0, side-eps, h-lip_len), App.Rotation()
+        )
+        right_return = Part.makeBox(L, t, lip_len+eps)
+        right_return.Placement = App.Placement(
+            App.Vector(0, w-side, h-lip_len), App.Rotation()
+        )
 
     solid = web
     for piece in (
@@ -441,6 +498,7 @@ def build_u_channel_lipped_experimental(
         *lower_bends,
         left_bend, right_bend,
         left_shoulder, right_shoulder,
+        *lip_bends,
         left_return, right_return,
     ):
         solid = solid.fuse(piece)
