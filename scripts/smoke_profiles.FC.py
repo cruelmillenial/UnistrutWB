@@ -103,6 +103,34 @@ for profile_id, target in fit_targets.items():
     except Exception as exc:
         print(profile_id, "LOWER BEND FAIL:", type(exc).__name__, str(exc))
 
+    # Separate checkpoint: both main bends plus a rounded lip transition.
+    try:
+        lip = profiles.build_u_channel_lipped_experimental(
+            width_mm=float(geom["width"]["mm"]),
+            depth_mm=float(geom["height"]["mm"]),
+            t_mm=t,
+            length_mm=1.0,
+            mouth_opening_mm=float(spec["mouth_opening"]["mm"]),
+            lip_depth_mm=float(spec["lip_depth"]["mm"]),
+            bend_radius_mm=t,
+            lower_bend_radius_mm=t,
+            lip_bend_radius_mm=0.5*t,
+        )
+        if not lip.isValid() or len(lip.Solids) != 1:
+            raise RuntimeError("lip experiment must be one valid solid")
+        print(profile_id, "LIP BEND TEST")
+        for name, value, old, goal in (
+            ("area_in2", lip.Volume/MM2_PER_IN2, lower.Volume/MM2_PER_IN2, target["area_in2"]),
+            ("centroid_bottom_in", lip.CenterOfMass.z/MM_PER_IN, lower.CenterOfMass.z/MM_PER_IN, target["centroid_bottom_in"]),
+            ("I11_in4", lip.MatrixOfInertia.A22/IN4_TO_MM4, lower.MatrixOfInertia.A22/IN4_TO_MM4, target["I11_in4"]),
+            ("I22_in4", lip.MatrixOfInertia.A33/IN4_TO_MM4, lower.MatrixOfInertia.A33/IN4_TO_MM4, target["I22_in4"]),
+        ):
+            print(" ", name, value, "delta_from_lower:", value-old, "target:", goal)
+        print("  valid:", lip.isValid(), "solids:", len(lip.Solids),
+              "width:", lip.BoundBox.YLength, "height:", lip.BoundBox.ZLength)
+    except Exception as exc:
+        print(profile_id, "LIP BEND FAIL:", type(exc).__name__, str(exc))
+
     bmoi = baseline.MatrixOfInertia
     emoi = experimental.MatrixOfInertia
     base_area = baseline.Volume / MM2_PER_IN2
