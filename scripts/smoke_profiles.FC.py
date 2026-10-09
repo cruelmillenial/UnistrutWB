@@ -54,7 +54,7 @@ for profile_id, target in fit_targets.items():
     print("  I11_in4:", moi.A22 / IN4_TO_MM4, "target:", target["I11_in4"])
     print("  I22_in4:", moi.A33 / IN4_TO_MM4, "target:", target["I22_in4"])
 
-print("\nEXPERIMENTAL UPPER-SHOULDER BEND")
+print("\nEXPERIMENTAL UPPER-SHOULDER BEND (checkpoint vs lower-radius)")
 for profile_id, target in fit_targets.items():
     profile = cat.get_profile(profile_id)
     geom = profile["geometry"]
@@ -75,6 +75,33 @@ for profile_id, target in fit_targets.items():
         print(profile_id)
         print("  FAIL:", type(exc).__name__, str(exc))
         continue
+
+    try:
+        lower = profiles.build_u_channel_lipped_experimental(
+            width_mm=float(geom["width"]["mm"]),
+            depth_mm=float(geom["height"]["mm"]),
+            t_mm=t,
+            length_mm=1.0,
+            mouth_opening_mm=float(spec["mouth_opening"]["mm"]),
+            lip_depth_mm=float(spec["lip_depth"]["mm"]),
+            bend_radius_mm=t,
+            lower_bend_radius_mm=t,
+        )
+        if not lower.isValid() or len(lower.Solids) != 1:
+            raise RuntimeError("lower-bend result must be one valid solid")
+        lm = lower.MatrixOfInertia
+        print(profile_id, "LOWER BEND TEST")
+        for name, value, old, goal in (
+            ("area_in2", lower.Volume/MM2_PER_IN2, experimental.Volume/MM2_PER_IN2, target["area_in2"]),
+            ("centroid_bottom_in", lower.CenterOfMass.z/MM_PER_IN, experimental.CenterOfMass.z/MM_PER_IN, target["centroid_bottom_in"]),
+            ("I11_in4", lm.A22/IN4_TO_MM4, experimental.MatrixOfInertia.A22/IN4_TO_MM4, target["I11_in4"]),
+            ("I22_in4", lm.A33/IN4_TO_MM4, experimental.MatrixOfInertia.A33/IN4_TO_MM4, target["I22_in4"]),
+        ):
+            print(" ", name, value, "delta_from_upper_only:", value-old, "target:", goal)
+        print("  valid:", lower.isValid(), "solids:", len(lower.Solids),
+              "width:", lower.BoundBox.YLength, "height:", lower.BoundBox.ZLength)
+    except Exception as exc:
+        print(profile_id, "LOWER BEND FAIL:", type(exc).__name__, str(exc))
 
     bmoi = baseline.MatrixOfInertia
     emoi = experimental.MatrixOfInertia
