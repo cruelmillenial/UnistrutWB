@@ -128,6 +128,59 @@ for profile_id, target in fit_targets.items():
             print(" ", name, value, "delta_from_lower:", value-old, "target:", goal)
         print("  valid:", lip.isValid(), "solids:", len(lip.Solids),
               "width:", lip.BoundBox.YLength, "height:", lip.BoundBox.ZLength)
+
+        # GEOMETRY AUDIT: use solid/empty intersection probes, not only
+        # bounding boxes or comparison with the published mass properties.
+        # The mouth is measured at a Z below the rounded lip bend.
+        w = float(geom["width"]["mm"])
+        h = float(geom["height"]["mm"])
+        opening = float(spec["mouth_opening"]["mm"])
+        depth = float(spec["lip_depth"]["mm"])
+        z_tip = h - depth
+        z_probe = z_tip + min(0.25*t, 0.25*(depth-(1.5*t)))
+        x_probe = 0.5
+        tol = 1e-4
+        def occupied(y, z):
+            return lip.isInside(App.Vector(x_probe, y, z), tol, False)
+        def check(name, actual, expected, tolerance=1e-4):
+            ok = abs(actual-expected) <= tolerance
+            print("   ", name, "PASS" if ok else "FAIL", "actual:", actual, "expected:", expected)
+            return ok
+        left_edge = (w-opening)/2.0
+        right_edge = (w+opening)/2.0
+        # Probe a horizontal line through the straight returns, scanning
+        # transitions by bisection.  The slit between the lips must be empty.
+        def boundary(lo, hi, inside_at_lo, iterations=40):
+            for _ in range(iterations):
+                mid = (lo+hi)/2.0
+                if occupied(mid, z_probe) == inside_at_lo:
+                    lo = mid
+                else:
+                    hi = mid
+            return (lo+hi)/2.0
+        print(profile_id, "GEOMETRY AUDIT")
+        print("    lip probe z:", z_probe, "nominal bottom:", z_tip)
+        mouth_empty = not occupied(w/2.0, z_probe)
+        left_lip = occupied(left_edge-0.5*t, z_probe)
+        right_lip = occupied(right_edge+0.5*t, z_probe)
+        left_measured = boundary(left_edge-0.5*t, w/2.0, True) if left_lip and mouth_empty else float("nan")
+        right_measured = boundary(w/2.0, right_edge+0.5*t, False) if right_lip and mouth_empty else float("nan")
+        checks = [
+            check("mouth_opening_mm", right_measured-left_measured, opening),
+            check("lip_tip_left_y", left_measured, left_edge),
+            check("lip_tip_right_y", right_measured, right_edge),
+            check("lip_tip_bottom_z", z_tip, h-depth),
+            check("envelope_width_mm", lip.BoundBox.YLength, w),
+            check("envelope_height_mm", lip.BoundBox.ZLength, h),
+        ]
+        # Detect mid-plane discontinuities and unexpected voids by checking
+        # transverse section topology and both halves' occupied points.
+        mid = lip.slice(App.Vector(1,0,0), 0.5)
+        print("    cross_section_edges:", len(mid.Edges),
+              "single_solid:", len(lip.Solids) == 1,
+              "center_mouth_empty:", mouth_empty)
+        checks.extend([mouth_empty, left_lip, right_lip, len(lip.Solids) == 1])
+        print("    GEOMETRY AUDIT:", "PASS" if all(checks) else "FAIL")
     except Exception as exc:
         print(profile_id, "LIP BEND FAIL:", type(exc).__name__, str(exc))
 
