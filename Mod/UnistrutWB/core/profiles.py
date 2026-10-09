@@ -274,6 +274,7 @@ def build_u_channel_lipped_experimental(
     mouth_opening_mm: float,
     lip_depth_mm: float,
     bend_radius_mm: float | None = None,
+    lower_bend_radius_mm: float | None = None,
 ) -> Part.Shape:
     """Experimental upper-shoulder bends using a centerline-style decomposition.
 
@@ -291,6 +292,10 @@ def build_u_channel_lipped_experimental(
     r_i = float(bend_radius_mm) if bend_radius_mm is not None else t
     r_i = max(r_i, 0.1)
     r_o = r_i + t
+    lower_ri = float(lower_bend_radius_mm) if lower_bend_radius_mm is not None else 0.0
+    if lower_ri < 0.0:
+        raise ValueError("lower bend radius cannot be negative")
+    lower_ro = lower_ri + t
 
     if not (0.0 < opening < w):
         raise ValueError("invalid experimental channel opening")
@@ -301,16 +306,23 @@ def build_u_channel_lipped_experimental(
 
     eps = min(0.05, t * 0.05)
 
-    # Lower web and straight sidewalls remain square for this experiment.
-    web = Part.makeBox(L, w, t)
-    wall_h = h - r_o - t + eps
+    # The lower-corner radius is independent of the upper shoulder radius.
+    # With lower_ri=0 the earlier square-corner checkpoint is reproduced.
+    web_width = w if lower_ri == 0.0 else w - 2.0 * lower_ro + 2.0 * eps
+    if web_width <= 0.0:
+        raise ValueError("lower bends leave no straight web")
+    web = Part.makeBox(L, web_width, t)
+    if lower_ri > 0.0:
+        web.Placement = App.Placement(App.Vector(0, lower_ro-eps, 0), App.Rotation())
+    wall_z0 = t - eps if lower_ri == 0.0 else lower_ro - eps
+    wall_h = h - r_o - wall_z0
     if wall_h <= 0.0:
         raise ValueError("experimental shoulder bend leaves no straight wall")
 
     left_wall = Part.makeBox(L, t, wall_h)
-    left_wall.Placement = App.Placement(App.Vector(0, 0, t - eps), App.Rotation())
+    left_wall.Placement = App.Placement(App.Vector(0, 0, wall_z0), App.Rotation())
     right_wall = Part.makeBox(L, t, wall_h)
-    right_wall.Placement = App.Placement(App.Vector(0, w - t, t - eps), App.Rotation())
+    right_wall.Placement = App.Placement(App.Vector(0, w - t, wall_z0), App.Rotation())
 
     # Build a quarter-annulus face in YZ and extrude it along X.
     def quarter_annulus(center_y: float, center_z: float, quadrant: str) -> Part.Shape:
@@ -366,6 +378,36 @@ def build_u_channel_lipped_experimental(
     left_bend = quarter_annulus(left_center_y, center_z, "left")
     right_bend = quarter_annulus(right_center_y, center_z, "right")
 
+    # Lower convex 90-degree transitions: concentric radii with constant t.
+    # Use explicit annular sectors; the upper corner primitive is unchanged.
+    lower_bends = []
+    if lower_ri > 0.0:
+        k = 0.7071067811865476
+        for cy, sign in ((lower_ro, -1.0), (w-lower_ro, 1.0)):
+            cz = lower_ro
+            outer = Part.Arc(
+                App.Vector(0, cy, 0),
+                App.Vector(0, cy+sign*lower_ro*k, cz-lower_ro*k),
+                App.Vector(0, cy+sign*lower_ro, cz),
+            ).toShape()
+            cap_wall = Part.makeLine(
+                App.Vector(0, cy+sign*lower_ro, cz),
+                App.Vector(0, cy+sign*lower_ri, cz),
+            )
+            inner = Part.Arc(
+                App.Vector(0, cy+sign*lower_ri, cz),
+                App.Vector(0, cy+sign*lower_ri*k, cz-lower_ri*k),
+                App.Vector(0, cy, cz-lower_ri),
+            ).toShape()
+            cap_web = Part.makeLine(
+                App.Vector(0, cy, cz-lower_ri),
+                App.Vector(0, cy, 0),
+            )
+            sector = Part.Face(Part.Wire([outer, cap_wall, inner, cap_web]))
+            if sector.isNull() or not sector.isValid():
+                raise RuntimeError("experimental lower-bend face is invalid")
+            lower_bends.append(sector.extrude(App.Vector(L, 0, 0)))
+
     # Horizontal shoulders begin just past the bends and terminate at the
     # published mouth edges.  Returns remain square and vertical for now.
     left_shoulder_start = r_o
@@ -396,6 +438,7 @@ def build_u_channel_lipped_experimental(
     solid = web
     for piece in (
         left_wall, right_wall,
+        *lower_bends,
         left_bend, right_bend,
         left_shoulder, right_shoulder,
         left_return, right_return,
