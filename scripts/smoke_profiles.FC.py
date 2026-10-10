@@ -139,10 +139,11 @@ for profile_id, target in fit_targets.items():
         z_tip = h - depth
         z_probe = z_tip + min(0.25*t, 0.25*(depth-(1.5*t)))
         x_probe = 0.5
-        tol = 1e-4
+        tol = 1e-4  # point-classification tolerance; distinct from dimension tolerance
+        dimension_tol = 0.001  # mm; accommodates boundary probing precision
         def occupied(y, z):
             return lip.isInside(App.Vector(x_probe, y, z), tol, False)
-        def check(name, actual, expected, tolerance=1e-4):
+        def check(name, actual, expected, tolerance=dimension_tol):
             ok = abs(actual-expected) <= tolerance
             print("   ", name, "PASS" if ok else "FAIL", "actual:", actual, "expected:", expected)
             return ok
@@ -165,18 +166,36 @@ for profile_id, target in fit_targets.items():
         right_lip = occupied(right_edge+0.5*t, z_probe)
         left_measured = boundary(left_edge-0.5*t, w/2.0, True) if left_lip and mouth_empty else float("nan")
         right_measured = boundary(w/2.0, right_edge+0.5*t, False) if right_lip and mouth_empty else float("nan")
+        def bottom_of_lip(y):
+            lo = max(0.0, z_tip - 2.0*t)
+            hi = z_probe
+            if occupied(y, lo) or not occupied(y, hi):
+                return float("nan")
+            for _ in range(40):
+                mid_z = (lo + hi) / 2.0
+                if occupied(y, mid_z):
+                    hi = mid_z
+                else:
+                    lo = mid_z
+            return (lo + hi) / 2.0
         checks = [
             check("mouth_opening_mm", right_measured-left_measured, opening),
             check("lip_tip_left_y", left_measured, left_edge),
             check("lip_tip_right_y", right_measured, right_edge),
-            check("lip_tip_bottom_z", z_tip, h-depth),
+            # Independently measure the return tips: a vertical probe through
+            # the middle of each straight lip detects the first solid material.
+            # Scan from below, then bisect the empty/occupied transition.
+            check("lip_tip_bottom_z_left", bottom_of_lip(left_edge-0.5*t), z_tip),
+            check("lip_tip_bottom_z_right", bottom_of_lip(right_edge+0.5*t), z_tip),
             check("envelope_width_mm", lip.BoundBox.YLength, w),
             check("envelope_height_mm", lip.BoundBox.ZLength, h),
         ]
         # Detect mid-plane discontinuities and unexpected voids by checking
         # transverse section topology and both halves' occupied points.
         mid = lip.slice(App.Vector(1,0,0), 0.5)
-        print("    cross_section_edges:", len(mid.Edges),
+        section_edges = sum(len(wire.Edges) for wire in mid)
+        print("    cross_section_wires:", len(mid),
+              "cross_section_edges:", section_edges,
               "single_solid:", len(lip.Solids) == 1,
               "center_mouth_empty:", mouth_empty)
         checks.extend([mouth_empty, left_lip, right_lip, len(lip.Solids) == 1])
