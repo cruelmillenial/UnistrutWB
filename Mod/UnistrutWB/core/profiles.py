@@ -112,6 +112,34 @@ def nearest_slot_center(slot_centers, point: App.Vector):
         return None
     return min(slot_centers, key=lambda v: (v.sub(point)).Length)
 
+def inferred_bend_radii(thickness_mm: float) -> Dict[str, float]:
+    """Model assumptions, NOT catalog-certified tooling dimensions."""
+    t = float(thickness_mm)
+    return {"upper_mm": t, "lower_mm": t, "lip_mm": 0.5 * t}
+
+
+def geometry_provenance(profile: Dict[str, Any], mode: Mode) -> Dict[str, Any]:
+    """Describe the effective lipped-channel builder without modifying catalog facts."""
+    spec = (profile.get("geometry") or {}).get("profile_spec") or {}
+    available = (spec.get("mouth_opening") or {}).get("mm") is not None and (
+        spec.get("lip_depth") or {}).get("mm") is not None
+    detailed = mode == "detailed" and spec.get("kind") == "u_channel_lipped" and available
+    legacy = spec.get("kind") == "u_channel_lipped" and not available
+    result = {
+        "requested_mode": mode,
+        "effective_model": "rounded_bend_sectors" if detailed else (
+            "legacy_prismatic" if legacy else "prismatic_checkpoint" if
+            spec.get("kind") == "u_channel_lipped" else "generic_channel"),
+        "catalog_specified": ["width", "height", "thickness"] + (
+            ["mouth_opening", "lip_depth"] if available else []),
+        "numerically_validated": False,
+    }
+    if detailed:
+        result["model_inferred"] = inferred_bend_radii(float(spec["t"]["mm"]))
+        result["model_inferred_basis"] = "nominal thickness ratios; not manufacturer tooling dimensions"
+    return result
+
+
 def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simple") -> Part.Shape:
     geom = profile["geometry"]
 
@@ -129,15 +157,31 @@ def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simpl
         mouth_mm = mouth.get("mm")
         lip_depth_mm = lip_depth.get("mm")
 
-        solid = build_u_channel_lipped(
-            width_mm=w,
-            depth_mm=h,
-            t_mm=t_mm,
-            lip_mm=lip_mm,
-            length_mm=length_mm,
-            mouth_opening_mm=float(mouth_mm) if mouth_mm is not None else None,
-            lip_depth_mm=float(lip_depth_mm) if lip_depth_mm is not None else None,
-        )
+        if mode == "detailed" and mouth_mm is not None and lip_depth_mm is not None:
+            radii = inferred_bend_radii(t_mm)
+            solid = build_u_channel_lipped_experimental(
+                width_mm=w,
+                depth_mm=h,
+                t_mm=t_mm,
+                length_mm=length_mm,
+                mouth_opening_mm=float(mouth_mm),
+                lip_depth_mm=float(lip_depth_mm),
+                bend_radius_mm=radii["upper_mm"],
+                lower_bend_radius_mm=radii["lower_mm"],
+                lip_bend_radius_mm=radii["lip_mm"],
+            )
+        else:
+            # Simple mode and incomplete legacy submittals retain the
+            # previous topology-safe checkpoint geometry.
+            solid = build_u_channel_lipped(
+                width_mm=w,
+                depth_mm=h,
+                t_mm=t_mm,
+                lip_mm=lip_mm,
+                length_mm=length_mm,
+                mouth_opening_mm=float(mouth_mm) if mouth_mm is not None else None,
+                lip_depth_mm=float(lip_depth_mm) if lip_depth_mm is not None else None,
+            )
 
         piercing = geom.get("piercing") or {}
         series = piercing.get("series")
