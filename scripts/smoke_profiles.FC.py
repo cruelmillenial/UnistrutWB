@@ -222,3 +222,40 @@ for profile_id, target in fit_targets.items():
     print("  centroid_bottom_in:", exp_c, "delta_from_baseline:", exp_c - base_c, "target:", target["centroid_bottom_in"])
     print("  I11_in4:", exp_i11, "delta_from_baseline:", exp_i11 - base_i11, "target:", target["I11_in4"])
     print("  I22_in4:", exp_i22, "delta_from_baseline:", exp_i22 - base_i22, "target:", target["I22_in4"])
+
+print("\nPRODUCTION MODE REGRESSION")
+for profile_id in ("P1000", "P4100"):
+    p = cat.get_profile(profile_id)
+    g = p["geometry"]
+    spec = g["profile_spec"]
+    radii = profiles.inferred_bend_radii(float(spec["t"]["mm"]))
+    provenance = profiles.geometry_provenance(p, "detailed")
+    assert provenance["effective_model"] == "rounded_bend_sectors"
+    assert provenance["model_inferred"] == radii
+    for mode_name in ("simple", "detailed"):
+        builds = []
+        for L in (1.0, 25.0, 1000.0):
+            shape = profiles.build_channel(p, L, mode=mode_name)
+            assert shape.isValid() and len(shape.Solids) == 1, (profile_id, mode_name, L)
+            assert abs(shape.BoundBox.XLength-L) < 0.001
+            assert abs(shape.BoundBox.YLength-float(g["width"]["mm"])) < 0.001
+            assert abs(shape.CenterOfMass.y-float(g["width"]["mm"])/2.0) < 0.001
+            builds.append(shape)
+        reference_area = builds[0].Volume
+        for L, shape in zip((1.0,25.0,1000.0), builds):
+            assert abs(shape.Volume/L-reference_area)/reference_area < 1e-5, (profile_id, mode_name, L)
+        if mode_name == "detailed":
+            target = fit_targets[profile_id]
+            shape = builds[0]
+            for value, expected in (
+                (shape.Volume/MM2_PER_IN2, target["area_in2"]),
+                (shape.CenterOfMass.z/MM_PER_IN, target["centroid_bottom_in"]),
+                (shape.MatrixOfInertia.A22/IN4_TO_MM4, target["I11_in4"]),
+                (shape.MatrixOfInertia.A33/IN4_TO_MM4, target["I22_in4"]),
+            ):
+                assert abs(value-expected)/expected < 0.03, (profile_id, value, expected)
+        print(profile_id, mode_name, "PASS", "area_mm2:", reference_area)
+legacy_detailed = profiles.build_channel(legacy, 1000.0, mode="detailed")
+assert legacy_detailed.isValid() and len(legacy_detailed.Solids) == 1
+assert profiles.geometry_provenance(legacy, "detailed")["effective_model"] == "legacy_prismatic"
+print("legacy detailed fallback PASS")
