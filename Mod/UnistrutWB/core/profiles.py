@@ -303,7 +303,8 @@ def build_u_channel_lipped(
     left_return = Part.makeBox(L, t, lip_len + eps)
     left_return.Placement = App.Placement(App.Vector(0, side - eps, h - lip_len), App.Rotation())
     right_return = Part.makeBox(L, t, lip_len + eps)
-    right_return.Placement = App.Placement(App.Vector(0, w - side, h - lip_len), App.Rotation())
+    # Mirror the left return including its epsilon overlap.
+    right_return.Placement = App.Placement(App.Vector(0, w - side - t + eps, h - lip_len), App.Rotation())
 
     solid = web
     for piece in (left_wall, right_wall, left_shoulder, right_shoulder, left_return, right_return):
