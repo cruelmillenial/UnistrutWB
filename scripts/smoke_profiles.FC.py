@@ -238,7 +238,8 @@ for profile_id in ("P1000", "P4100"):
             shape = profiles.build_channel(p, L, mode=mode_name)
             assert shape.isValid() and len(shape.Solids) == 1, (
                 profile_id, mode_name, L, "shape_type", shape.ShapeType,
-                "solid_count", len(shape.Solids),
+                "solid_count", len(shape.Solids), "volume_mm3", shape.Volume,
+                "piercing", g.get("piercing"), "spec_piercing", spec.get("piercing"),
             )
             assert abs(shape.BoundBox.XLength-L) < 0.001
             assert abs(shape.BoundBox.YLength-float(g["width"]["mm"])) < 0.001
@@ -269,7 +270,12 @@ for profile_id in ("P1000", "P4100"):
             builds.append(shape)
         reference_area = builds[0].Volume
         for L, shape in zip((1.0,25.0,1000.0), builds):
-            assert abs(shape.Volume/L-reference_area)/reference_area < 1e-5, (profile_id, mode_name, L)
+            area = shape.Volume/L
+            assert abs(area-reference_area)/reference_area < 1e-5, (
+                profile_id, mode_name, L, "area_scaling_mm2", area,
+                "reference_mm2", reference_area, "delta_fraction",
+                (area-reference_area)/reference_area, "piercing", g.get("piercing"),
+            )
         if mode_name == "detailed":
             target = fit_targets[profile_id]
             shape = builds[0]
