@@ -236,10 +236,19 @@ for profile_id in ("P1000", "P4100"):
         builds = []
         for L in (1.0, 25.0, 1000.0):
             shape = profiles.build_channel(p, L, mode=mode_name)
-            assert shape.isValid() and len(shape.Solids) == 1, (profile_id, mode_name, L)
+            assert shape.isValid() and len(shape.Solids) == 1, (
+                profile_id, mode_name, L, "shape_type", shape.ShapeType,
+                "solid_count", len(shape.Solids),
+            )
             assert abs(shape.BoundBox.XLength-L) < 0.001
             assert abs(shape.BoundBox.YLength-float(g["width"]["mm"])) < 0.001
-            assert abs(shape.CenterOfMass.y-float(g["width"]["mm"])/2.0) < 0.001
+            actual_y = shape.Solids[0].CenterOfMass.y
+            expected_y = float(g["width"]["mm"]) / 2.0
+            assert abs(actual_y-expected_y) < 0.001, (
+                profile_id, mode_name, L, "centroid_y", actual_y,
+                "expected", expected_y, "delta_mm", actual_y-expected_y,
+                "shape_type", shape.ShapeType,
+            )
             builds.append(shape)
         reference_area = builds[0].Volume
         for L, shape in zip((1.0,25.0,1000.0), builds):
