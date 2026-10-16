@@ -291,7 +291,8 @@ def build_u_channel_lipped(
     left_shoulder = Part.makeBox(L, shoulder_len, t)
     left_shoulder.Placement = App.Placement(App.Vector(0, t - eps, h - t), App.Rotation())
     right_shoulder = Part.makeBox(L, shoulder_len, t)
-    right_shoulder.Placement = App.Placement(App.Vector(0, w - side, h - t), App.Rotation())
+    # Mirror the left shoulder including its epsilon overlap.
+    right_shoulder.Placement = App.Placement(App.Vector(0, w - t - shoulder_len + eps, h - t), App.Rotation())
 
     lip_len = min(lip_depth, h - t)
     left_return = Part.makeBox(L, t, lip_len + eps)
