@@ -1,13 +1,24 @@
+import math
 from UnistrutWB.core import profiles
+from UnistrutWB.core.loader import Catalog
 import importlib
+
 importlib.reload(profiles)
 
-p = {"geometry": {"width":{"mm":41.275}, "height":{"mm":20.6375}, "thickness":{"mm":1.905}}}
+cat = Catalog.load(force_reload=True)
 
-s = profiles.build_channel(p, 1000.0, mode="simple")
-d = profiles.build_channel(p, 1000.0, mode="detailed")
+for profile_id in ("P1000", "P4100"):
+    profile = cat.get_profile(profile_id)
+    shape = profiles.build_channel(profile, 1000.0, mode="simple")
+    spec = profile["geometry"]["profile_spec"]
+    print(profile_id)
+    print("  mouth_opening_mm:", spec.get("mouth_opening", {}).get("mm"))
+    print("  lip_depth_mm:", spec.get("lip_depth", {}).get("mm"))
+    print("  BB:", shape.BoundBox.XLength, shape.BoundBox.YLength, shape.BoundBox.ZLength)
+    print("  V:", shape.Volume)
+    print("  valid:", shape.isValid())
 
-p_lipped = {
+legacy = {
     "geometry": {
         "width": {"mm": 41.275},
         "height": {"mm": 20.6375},
@@ -16,15 +27,314 @@ p_lipped = {
             "kind": "u_channel_lipped",
             "t": {"mm": 1.905},
             "lip_return": {"mm": 9.525},
-            "inside_radius": {"mm": 1.524},  # ignored for now
         },
     }
 }
-u = profiles.build_channel(p_lipped, 1000.0, mode="simple")
-spec = p_lipped["geometry"]["profile_spec"]
-print("lip_return_mm:", spec["lip_return"]["mm"])
-print("lipped BB:", u.BoundBox.XLength, u.BoundBox.YLength, u.BoundBox.ZLength)
-print("lipped V:", u.Volume)
-print("simple BB:", s.BoundBox.XLength, s.BoundBox.YLength, s.BoundBox.ZLength)
-print("detail BB:", d.BoundBox.XLength, d.BoundBox.YLength, d.BoundBox.ZLength)
-print("delta V:", d.Volume - s.Volume)
+legacy_shape = profiles.build_channel(legacy, 1000.0, mode="simple")
+print("legacy fallback valid:", legacy_shape.isValid())
+
+MM_PER_IN = 25.4
+MM2_PER_IN2 = MM_PER_IN ** 2
+IN4_TO_MM4 = MM_PER_IN ** 4
+
+fit_targets = {
+    "P1000": {"area_in2": 0.555, "centroid_bottom_in": 0.710, "I11_in4": 0.185, "I22_in4": 0.236},
+    "P4100": {"area_in2": 0.290, "centroid_bottom_in": 0.333, "I11_in4": 0.026, "I22_in4": 0.107},
+}
+
+print("\nCHECKPOINT BASELINE")
+for profile_id, target in fit_targets.items():
+    profile = cat.get_profile(profile_id)
+    shape = profiles.build_channel(profile, 1.0, mode="simple")
+    moi = shape.MatrixOfInertia
+    print(profile_id)
+    print("  valid:", shape.isValid())
+    print("  area_in2:", shape.Volume / MM2_PER_IN2, "target:", target["area_in2"])
+    print("  centroid_bottom_in:", shape.CenterOfMass.z / MM_PER_IN, "target:", target["centroid_bottom_in"])
+    print("  I11_in4:", moi.A22 / IN4_TO_MM4, "target:", target["I11_in4"])
+    print("  I22_in4:", moi.A33 / IN4_TO_MM4, "target:", target["I22_in4"])
+
+print("\nEXPERIMENTAL UPPER-SHOULDER BEND (checkpoint vs lower-radius)")
+for profile_id, target in fit_targets.items():
+    profile = cat.get_profile(profile_id)
+    geom = profile["geometry"]
+    spec = geom["profile_spec"]
+    t = float(spec["t"]["mm"])
+    baseline = profiles.build_channel(profile, 1.0, mode="simple")
+    try:
+        experimental = profiles.build_u_channel_lipped_experimental(
+            width_mm=float(geom["width"]["mm"]),
+            depth_mm=float(geom["height"]["mm"]),
+            t_mm=t,
+            length_mm=1.0,
+            mouth_opening_mm=float(spec["mouth_opening"]["mm"]),
+            lip_depth_mm=float(spec["lip_depth"]["mm"]),
+            bend_radius_mm=t,
+        )
+    except Exception as exc:
+        print(profile_id)
+        print("  FAIL:", type(exc).__name__, str(exc))
+        continue
+
+    try:
+        lower = profiles.build_u_channel_lipped_experimental(
+            width_mm=float(geom["width"]["mm"]),
+            depth_mm=float(geom["height"]["mm"]),
+            t_mm=t,
+            length_mm=1.0,
+            mouth_opening_mm=float(spec["mouth_opening"]["mm"]),
+            lip_depth_mm=float(spec["lip_depth"]["mm"]),
+            bend_radius_mm=t,
+            lower_bend_radius_mm=t,
+        )
+        if not lower.isValid() or len(lower.Solids) != 1:
+            raise RuntimeError("lower-bend result must be one valid solid")
+        lm = lower.MatrixOfInertia
+        print(profile_id, "LOWER BEND TEST")
+        for name, value, old, goal in (
+            ("area_in2", lower.Volume/MM2_PER_IN2, experimental.Volume/MM2_PER_IN2, target["area_in2"]),
+            ("centroid_bottom_in", lower.CenterOfMass.z/MM_PER_IN, experimental.CenterOfMass.z/MM_PER_IN, target["centroid_bottom_in"]),
+            ("I11_in4", lm.A22/IN4_TO_MM4, experimental.MatrixOfInertia.A22/IN4_TO_MM4, target["I11_in4"]),
+            ("I22_in4", lm.A33/IN4_TO_MM4, experimental.MatrixOfInertia.A33/IN4_TO_MM4, target["I22_in4"]),
+        ):
+            print(" ", name, value, "delta_from_upper_only:", value-old, "target:", goal)
+        print("  valid:", lower.isValid(), "solids:", len(lower.Solids),
+              "width:", lower.BoundBox.YLength, "height:", lower.BoundBox.ZLength)
+    except Exception as exc:
+        print(profile_id, "LOWER BEND FAIL:", type(exc).__name__, str(exc))
+
+    # Separate checkpoint: both main bends plus a rounded lip transition.
+    try:
+        lip = profiles.build_u_channel_lipped_experimental(
+            width_mm=float(geom["width"]["mm"]),
+            depth_mm=float(geom["height"]["mm"]),
+            t_mm=t,
+            length_mm=1.0,
+            mouth_opening_mm=float(spec["mouth_opening"]["mm"]),
+            lip_depth_mm=float(spec["lip_depth"]["mm"]),
+            bend_radius_mm=t,
+            lower_bend_radius_mm=t,
+            lip_bend_radius_mm=0.5*t,
+        )
+        if not lip.isValid() or len(lip.Solids) != 1:
+            raise RuntimeError("lip experiment must be one valid solid")
+        print(profile_id, "LIP BEND TEST")
+        for name, value, old, goal in (
+            ("area_in2", lip.Volume/MM2_PER_IN2, lower.Volume/MM2_PER_IN2, target["area_in2"]),
+            ("centroid_bottom_in", lip.CenterOfMass.z/MM_PER_IN, lower.CenterOfMass.z/MM_PER_IN, target["centroid_bottom_in"]),
+            ("I11_in4", lip.MatrixOfInertia.A22/IN4_TO_MM4, lower.MatrixOfInertia.A22/IN4_TO_MM4, target["I11_in4"]),
+            ("I22_in4", lip.MatrixOfInertia.A33/IN4_TO_MM4, lower.MatrixOfInertia.A33/IN4_TO_MM4, target["I22_in4"]),
+        ):
+            print(" ", name, value, "delta_from_lower:", value-old, "target:", goal)
+        print("  valid:", lip.isValid(), "solids:", len(lip.Solids),
+              "width:", lip.BoundBox.YLength, "height:", lip.BoundBox.ZLength)
+
+        # GEOMETRY AUDIT: use solid/empty intersection probes, not only
+        # bounding boxes or comparison with the published mass properties.
+        # The mouth is measured at a Z below the rounded lip bend.
+        w = float(geom["width"]["mm"])
+        h = float(geom["height"]["mm"])
+        opening = float(spec["mouth_opening"]["mm"])
+        depth = float(spec["lip_depth"]["mm"])
+        z_tip = h - depth
+        z_probe = z_tip + min(0.25*t, 0.25*(depth-(1.5*t)))
+        x_probe = 0.5
+        tol = 1e-4  # point-classification tolerance; distinct from dimension tolerance
+        dimension_tol = 0.001  # mm; accommodates boundary probing precision
+        def occupied(y, z):
+            return lip.isInside(App.Vector(x_probe, y, z), tol, False)
+        def check(name, actual, expected, tolerance=dimension_tol):
+            ok = abs(actual-expected) <= tolerance
+            print("   ", name, "PASS" if ok else "FAIL", "actual:", actual, "expected:", expected)
+            return ok
+        left_edge = (w-opening)/2.0
+        right_edge = (w+opening)/2.0
+        # Probe a horizontal line through the straight returns, scanning
+        # transitions by bisection.  The slit between the lips must be empty.
+        def boundary(lo, hi, inside_at_lo, iterations=40):
+            for _ in range(iterations):
+                mid = (lo+hi)/2.0
+                if occupied(mid, z_probe) == inside_at_lo:
+                    lo = mid
+                else:
+                    hi = mid
+            return (lo+hi)/2.0
+        print(profile_id, "GEOMETRY AUDIT")
+        print("    lip probe z:", z_probe, "nominal bottom:", z_tip)
+        mouth_empty = not occupied(w/2.0, z_probe)
+        left_lip = occupied(left_edge-0.5*t, z_probe)
+        right_lip = occupied(right_edge+0.5*t, z_probe)
+        left_measured = boundary(left_edge-0.5*t, w/2.0, True) if left_lip and mouth_empty else float("nan")
+        right_measured = boundary(w/2.0, right_edge+0.5*t, False) if right_lip and mouth_empty else float("nan")
+        def bottom_of_lip(y):
+            lo = max(0.0, z_tip - 2.0*t)
+            hi = z_probe
+            if occupied(y, lo) or not occupied(y, hi):
+                return float("nan")
+            for _ in range(40):
+                mid_z = (lo + hi) / 2.0
+                if occupied(y, mid_z):
+                    hi = mid_z
+                else:
+                    lo = mid_z
+            return (lo + hi) / 2.0
+        checks = [
+            check("mouth_opening_mm", right_measured-left_measured, opening),
+            check("lip_tip_left_y", left_measured, left_edge),
+            check("lip_tip_right_y", right_measured, right_edge),
+            # Independently measure the return tips: a vertical probe through
+            # the middle of each straight lip detects the first solid material.
+            # Scan from below, then bisect the empty/occupied transition.
+            check("lip_tip_bottom_z_left", bottom_of_lip(left_edge-0.5*t), z_tip),
+            check("lip_tip_bottom_z_right", bottom_of_lip(right_edge+0.5*t), z_tip),
+            check("envelope_width_mm", lip.BoundBox.YLength, w),
+            check("envelope_height_mm", lip.BoundBox.ZLength, h),
+        ]
+        # Detect mid-plane discontinuities and unexpected voids by checking
+        # transverse section topology and both halves' occupied points.
+        mid = lip.slice(App.Vector(1,0,0), 0.5)
+        section_edges = sum(len(wire.Edges) for wire in mid)
+        print("    cross_section_wires:", len(mid),
+              "cross_section_edges:", section_edges,
+              "single_solid:", len(lip.Solids) == 1,
+              "center_mouth_empty:", mouth_empty)
+        checks.extend([mouth_empty, left_lip, right_lip, len(lip.Solids) == 1])
+        print("    GEOMETRY AUDIT:", "PASS" if all(checks) else "FAIL")
+    except Exception as exc:
+        print(profile_id, "LIP BEND FAIL:", type(exc).__name__, str(exc))
+
+    bmoi = baseline.MatrixOfInertia
+    emoi = experimental.MatrixOfInertia
+    base_area = baseline.Volume / MM2_PER_IN2
+    exp_area = experimental.Volume / MM2_PER_IN2
+    base_c = baseline.CenterOfMass.z / MM_PER_IN
+    exp_c = experimental.CenterOfMass.z / MM_PER_IN
+    base_i11 = bmoi.A22 / IN4_TO_MM4
+    exp_i11 = emoi.A22 / IN4_TO_MM4
+    base_i22 = bmoi.A33 / IN4_TO_MM4
+    exp_i22 = emoi.A33 / IN4_TO_MM4
+
+    print(profile_id)
+    print("  bend_radius_mm:", t)
+    print("  valid:", experimental.isValid())
+    print("  BB_height_mm:", experimental.BoundBox.ZLength, "nominal:", float(geom["height"]["mm"]))
+    print("  area_in2:", exp_area, "delta_from_baseline:", exp_area - base_area, "target:", target["area_in2"])
+    print("  centroid_bottom_in:", exp_c, "delta_from_baseline:", exp_c - base_c, "target:", target["centroid_bottom_in"])
+    print("  I11_in4:", exp_i11, "delta_from_baseline:", exp_i11 - base_i11, "target:", target["I11_in4"])
+    print("  I22_in4:", exp_i22, "delta_from_baseline:", exp_i22 - base_i22, "target:", target["I22_in4"])
+
+print("\nPRODUCTION MODE REGRESSION")
+for profile_id in ("P1000", "P4100"):
+    p = cat.get_profile(profile_id)
+    g = p["geometry"]
+    spec = g["profile_spec"]
+    radii = profiles.inferred_bend_radii(float(spec["t"]["mm"]))
+    provenance = profiles.geometry_provenance(p, "detailed")
+    assert provenance["effective_model"] == "rounded_bend_sectors"
+    assert provenance["model_inferred"] == radii
+    for mode_name in ("simple", "detailed"):
+        builds = []
+        for L in (1.0, 25.0, 1000.0):
+            shape = profiles.build_channel(p, L, mode=mode_name)
+            assert shape.isValid() and len(shape.Solids) == 1, (
+                profile_id, mode_name, L, "shape_type", shape.ShapeType,
+                "solid_count", len(shape.Solids), "volume_mm3", shape.Volume,
+                "piercing", g.get("piercing"), "spec_piercing", spec.get("piercing"),
+            )
+            assert abs(shape.BoundBox.XLength-L) < 0.001
+            assert abs(shape.BoundBox.YLength-float(g["width"]["mm"])) < 0.001
+            actual_y = shape.Solids[0].CenterOfMass.y
+            expected_y = float(g["width"]["mm"]) / 2.0
+            # Directly compare material membership across mirrored Y samples
+            # on the unpierced midsection, not merely the aggregate centroid.
+            if mode_name == "simple":
+                x_mid = L / 2.0
+                width_mm = float(g["width"]["mm"])
+                height_mm = float(g["height"]["mm"])
+                t_mm = float(spec["t"]["mm"])
+                ys = (0.25*t_mm, 0.75*t_mm, t_mm+0.1,
+                      0.5*(width_mm/2.0), width_mm/2.0-0.2)
+                zs = (0.5*t_mm, height_mm/2.0, height_mm-t_mm/2.0,
+                      height_mm-float(spec["lip_depth"]["mm"])/2.0)
+                for y in ys:
+                    for z in zs:
+                        a = shape.isInside(App.Vector(x_mid,y,z),1e-6,False)
+                        b = shape.isInside(App.Vector(x_mid,width_mm-y,z),1e-6,False)
+                        assert a == b, (profile_id,mode_name,L,
+                            "mirror_material_mismatch",y,z,a,b)
+            assert abs(actual_y-expected_y) < 0.001, (
+                profile_id, mode_name, L, "centroid_y", actual_y,
+                "expected", expected_y, "delta_mm", actual_y-expected_y,
+                "shape_type", shape.ShapeType,
+            )
+            builds.append(shape)
+        # Compare the production output against an unpierced reference.
+        # Length-invariant section area applies only before holes are cut.
+        import copy
+        from UnistrutWB.core.holes import resolve_piercing_spec, compute_slot_centers
+        unpierced_profile = copy.deepcopy(p)
+        unpierced_profile["geometry"]["piercing"] = {}
+        reference = [profiles.build_channel(unpierced_profile, L, mode=mode_name)
+                     for L in (1.0, 25.0, 1000.0)]
+        reference_area = reference[0].Volume
+        for L, shape, blank in zip((1.0,25.0,1000.0), builds, reference):
+            assert blank.isValid() and len(blank.Solids) == 1
+            blank_area = blank.Volume/L
+            assert abs(blank_area-reference_area)/reference_area < 1e-5, (
+                profile_id, mode_name, L, "unpierced_area_scaling_mm2",
+                blank_area, "reference_mm2", reference_area,
+            )
+            piercing = g.get("piercing") or {}
+            if piercing.get("series"):
+                hole_spec = resolve_piercing_spec(p)
+                centers = compute_slot_centers(hole_spec, L,
+                                               width_mm=float(g["width"]["mm"]))
+                removed = blank.Volume-shape.Volume
+                assert removed >= -1e-5, (
+                    profile_id, mode_name, L, "piercing_added_volume", removed,
+                )
+                if centers:
+                    assert removed > 1e-5, (
+                        profile_id, mode_name, L, "slots_no_material_removed",
+                        "centers", len(centers), "removed_mm3", removed,
+                    )
+                    # In the current MVP rectangular web-slot pattern, all
+                    # generated slots lie within the channel ends and web.
+                    pattern = hole_spec.get("slot_pattern", hole_spec)
+                    slot_length = float(pattern.get("slot_length_mm",
+                                        pattern.get("diameter_mm", 14.0)))
+                    slot_width = float(pattern.get("slot_width_mm",
+                                       pattern.get("diameter_mm", 14.0)))
+                    expected_removed = (len(centers)*slot_length*slot_width
+                                        *float(spec["t"]["mm"]))
+                    assert abs(removed-expected_removed) < max(0.02,expected_removed*1e-4), (
+                        profile_id, mode_name, L, "slot_volume_mismatch",
+                        "removed_mm3", removed, "expected_mm3", expected_removed,
+                        "centers", len(centers),
+                    )
+                else:
+                    assert abs(removed) < 1e-5, (
+                        profile_id, mode_name, L, "material_removed_without_slots",
+                        removed,
+                    )
+                print(profile_id, mode_name, L, "piercing centers:",
+                      len(centers), "removed_mm3:", removed)
+            else:
+                assert abs(shape.Volume-blank.Volume) < 1e-5, (
+                    profile_id, mode_name, L, "unexpected_material_removed",
+                )
+        if mode_name == "detailed":
+            target = fit_targets[profile_id]
+            shape = builds[0]
+            for value, expected in (
+                (shape.Volume/MM2_PER_IN2, target["area_in2"]),
+                (shape.CenterOfMass.z/MM_PER_IN, target["centroid_bottom_in"]),
+                (shape.MatrixOfInertia.A22/IN4_TO_MM4, target["I11_in4"]),
+                (shape.MatrixOfInertia.A33/IN4_TO_MM4, target["I22_in4"]),
+            ):
+                assert abs(value-expected)/expected < 0.03, (profile_id, value, expected)
+        print(profile_id, mode_name, "PASS", "area_mm2:", reference_area)
+legacy_detailed = profiles.build_channel(legacy, 1000.0, mode="detailed")
+assert legacy_detailed.isValid() and len(legacy_detailed.Solids) == 1
+assert profiles.geometry_provenance(legacy, "detailed")["effective_model"] == "legacy_prismatic"
+print("legacy detailed fallback PASS")

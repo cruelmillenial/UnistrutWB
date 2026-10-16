@@ -3,7 +3,7 @@ import FreeCAD as App
 import FreeCADGui as Gui
 
 from ..core.loader import Catalog
-from ..core.profiles import build_channel
+from ..core.profiles import build_channel, geometry_provenance
 from ..core.holes import resolve_piercing_spec, compute_slot_centers
 
 try:
@@ -130,6 +130,16 @@ class _CmdNewChannel:
             obj.addProperty("App::PropertyLength", "Length", "Unistrut").Length = float(length.value())
             obj.addProperty("App::PropertyString", "Finish", "Unistrut").Finish = finish.text().strip() or "EG"
             obj.addProperty("App::PropertyString", "Mode", "Unistrut").Mode = mode.currentText()
+            provenance = geometry_provenance(prof_for_channel, mode.currentText().lower())
+            obj.addProperty("App::PropertyString", "GeometryModel", "Geometry Provenance").GeometryModel = provenance["effective_model"]
+            obj.addProperty("App::PropertyString", "GeometryCatalogFields", "Geometry Provenance").GeometryCatalogFields = ", ".join(provenance["catalog_specified"])
+            obj.addProperty("App::PropertyBool", "GeometryNumericallyValidated", "Geometry Provenance").GeometryNumericallyValidated = False
+            obj.addProperty("App::PropertyString", "GeometryValidationNote", "Geometry Provenance").GeometryValidationNote = "Validation is established by external regression tests, not inferred from this object."
+            radii = provenance.get("model_inferred") or {}
+            obj.addProperty("App::PropertyString", "GeometryInferredBasis", "Geometry Provenance").GeometryInferredBasis = provenance.get("model_inferred_basis", "No inferred bend radii")
+            for label, key in (("UpperBendRadius", "upper_mm"), ("LowerBendRadius", "lower_mm"), ("LipBendRadius", "lip_mm")):
+                obj.addProperty("App::PropertyLength", label, "Geometry Provenance")
+                setattr(obj, label, radii.get(key, 0.0))
             obj.addProperty("App::PropertyString", "PiercingPreset", "Unistrut").PiercingPreset = piercing.currentData()
             obj.addProperty("App::PropertyString", "HoleClearanceIn", "Unistrut").HoleClearanceIn = hole_clearance.text().strip()
 
