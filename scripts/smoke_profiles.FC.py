@@ -244,6 +244,23 @@ for profile_id in ("P1000", "P4100"):
             assert abs(shape.BoundBox.YLength-float(g["width"]["mm"])) < 0.001
             actual_y = shape.Solids[0].CenterOfMass.y
             expected_y = float(g["width"]["mm"]) / 2.0
+            # Directly compare material membership across mirrored Y samples
+            # on the unpierced midsection, not merely the aggregate centroid.
+            if mode_name == "simple":
+                x_mid = L / 2.0
+                width_mm = float(g["width"]["mm"])
+                height_mm = float(g["height"]["mm"])
+                t_mm = float(spec["t"]["mm"])
+                ys = (0.25*t_mm, 0.75*t_mm, t_mm+0.1,
+                      0.5*(width_mm/2.0), width_mm/2.0-0.2)
+                zs = (0.5*t_mm, height_mm/2.0, height_mm-t_mm/2.0,
+                      height_mm-float(spec["lip_depth"]["mm"])/2.0)
+                for y in ys:
+                    for z in zs:
+                        a = shape.isInside(App.Vector(x_mid,y,z),1e-6,False)
+                        b = shape.isInside(App.Vector(x_mid,width_mm-y,z),1e-6,False)
+                        assert a == b, (profile_id,mode_name,L,
+                            "mirror_material_mismatch",y,z,a,b)
             assert abs(actual_y-expected_y) < 0.001, (
                 profile_id, mode_name, L, "centroid_y", actual_y,
                 "expected", expected_y, "delta_mm", actual_y-expected_y,
