@@ -268,14 +268,61 @@ for profile_id in ("P1000", "P4100"):
                 "shape_type", shape.ShapeType,
             )
             builds.append(shape)
-        reference_area = builds[0].Volume
-        for L, shape in zip((1.0,25.0,1000.0), builds):
-            area = shape.Volume/L
-            assert abs(area-reference_area)/reference_area < 1e-5, (
-                profile_id, mode_name, L, "area_scaling_mm2", area,
-                "reference_mm2", reference_area, "delta_fraction",
-                (area-reference_area)/reference_area, "piercing", g.get("piercing"),
+        # Compare the production output against an unpierced reference.
+        # Length-invariant section area applies only before holes are cut.
+        import copy
+        from UnistrutWB.core.holes import resolve_piercing_spec, compute_slot_centers
+        unpierced_profile = copy.deepcopy(p)
+        unpierced_profile["geometry"]["piercing"] = {}
+        reference = [profiles.build_channel(unpierced_profile, L, mode=mode_name)
+                     for L in (1.0, 25.0, 1000.0)]
+        reference_area = reference[0].Volume
+        for L, shape, blank in zip((1.0,25.0,1000.0), builds, reference):
+            assert blank.isValid() and len(blank.Solids) == 1
+            blank_area = blank.Volume/L
+            assert abs(blank_area-reference_area)/reference_area < 1e-5, (
+                profile_id, mode_name, L, "unpierced_area_scaling_mm2",
+                blank_area, "reference_mm2", reference_area,
             )
+            piercing = g.get("piercing") or {}
+            if piercing.get("series"):
+                hole_spec = resolve_piercing_spec(p)
+                centers = compute_slot_centers(hole_spec, L,
+                                               width_mm=float(g["width"]["mm"]))
+                removed = blank.Volume-shape.Volume
+                assert removed >= -1e-5, (
+                    profile_id, mode_name, L, "piercing_added_volume", removed,
+                )
+                if centers:
+                    assert removed > 1e-5, (
+                        profile_id, mode_name, L, "slots_no_material_removed",
+                        "centers", len(centers), "removed_mm3", removed,
+                    )
+                    # In the current MVP rectangular web-slot pattern, all
+                    # generated slots lie within the channel ends and web.
+                    pattern = hole_spec.get("slot_pattern", hole_spec)
+                    slot_length = float(pattern.get("slot_length_mm",
+                                        pattern.get("diameter_mm", 14.0)))
+                    slot_width = float(pattern.get("slot_width_mm",
+                                       pattern.get("diameter_mm", 14.0)))
+                    expected_removed = (len(centers)*slot_length*slot_width
+                                        *float(spec["t"]["mm"]))
+                    assert abs(removed-expected_removed) < max(0.02,expected_removed*1e-4), (
+                        profile_id, mode_name, L, "slot_volume_mismatch",
+                        "removed_mm3", removed, "expected_mm3", expected_removed,
+                        "centers", len(centers),
+                    )
+                else:
+                    assert abs(removed) < 1e-5, (
+                        profile_id, mode_name, L, "material_removed_without_slots",
+                        removed,
+                    )
+                print(profile_id, mode_name, L, "piercing centers:",
+                      len(centers), "removed_mm3:", removed)
+            else:
+                assert abs(shape.Volume-blank.Volume) < 1e-5, (
+                    profile_id, mode_name, L, "unexpected_material_removed",
+                )
         if mode_name == "detailed":
             target = fit_targets[profile_id]
             shape = builds[0]
