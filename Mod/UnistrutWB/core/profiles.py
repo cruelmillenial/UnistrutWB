@@ -195,6 +195,11 @@ def build_channel(profile: Dict[str, Any], length_mm: float, mode: Mode = "simpl
                 thickness_mm=t_mm,
         )
 
+        # OCC boolean cuts can return a Compound containing one valid solid.
+        # Normalize the public builder result to a Solid for consistent mass
+        # properties and downstream FreeCAD command behavior.
+        if len(solid.Solids) == 1 and solid.isValid():
+            solid = solid.Solids[0]
         return solid
 
     outer = _rect_profile_yz(w, h)
