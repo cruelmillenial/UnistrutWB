@@ -75,7 +75,6 @@ class _CmdNewChannel:
         layout.addWidget(finish)
 
         piercing = QtWidgets.QComboBox()
-        piercing.addItem("Profile default", "__profile__")
         piercing.addItem("Plain / solid", "__plain__")
         piercing.addItem("T slotted", "T")
         layout.addWidget(piercing)
@@ -140,7 +139,7 @@ class _CmdNewChannel:
             for label, key in (("UpperBendRadius", "upper_mm"), ("LowerBendRadius", "lower_mm"), ("LipBendRadius", "lip_mm")):
                 obj.addProperty("App::PropertyLength", label, "Geometry Provenance")
                 setattr(obj, label, radii.get(key, 0.0))
-            obj.addProperty("App::PropertyString", "PiercingPreset", "Unistrut").PiercingPreset = piercing.currentData()
+            obj.addProperty("App::PropertyString", "PiercingPreset", "Unistrut").PiercingPreset = (selected_piercing if selected_piercing not in ("__plain__", "__profile__", None) else "plain")
             obj.addProperty("App::PropertyString", "HoleClearanceIn", "Unistrut").HoleClearanceIn = hole_clearance.text().strip()
 
             if "SlotCenters" not in obj.PropertiesList:
