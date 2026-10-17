@@ -16,7 +16,7 @@
           "mm": 1.9
         },
         "piercing": {
-          "series": "T",
+          "series": null,
           "template": null,
           "overrides": {}
         },

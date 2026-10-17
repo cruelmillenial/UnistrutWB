@@ -334,6 +334,29 @@ for profile_id in ("P1000", "P4100"):
             ):
                 assert abs(value-expected)/expected < 0.03, (profile_id, value, expected)
         print(profile_id, mode_name, "PASS", "area_mm2:", reference_area)
+# P4100 must be plain by default; slotted P4100 is an explicit variant.
+assert not (cat.get_profile("P4100")["geometry"].get("piercing") or {}).get("series")
+for mode_name in ("simple", "detailed"):
+    base_profile = cat.get_profile("P4100")
+    plain = profiles.build_channel(base_profile, 1000.0, mode=mode_name)
+    slotted_profile = copy.deepcopy(base_profile)
+    slotted_profile["geometry"]["piercing"] = {
+        "series": "T", "template": None, "overrides": {},
+    }
+    slotted = profiles.build_channel(slotted_profile, 1000.0, mode=mode_name)
+    pattern = resolve_piercing_spec(slotted_profile)
+    centers = compute_slot_centers(pattern, 1000.0, width_mm=41.3)
+    expected_removed = len(centers) * 28.6 * 14.3 * 1.9
+    actual_removed = plain.Volume - slotted.Volume
+    assert plain.isValid() and slotted.isValid()
+    assert len(plain.Solids) == len(slotted.Solids) == 1
+    assert len(centers) == 19
+    assert abs(actual_removed - expected_removed) < 0.02, (
+        mode_name, "explicit_T_removal", actual_removed, expected_removed,
+    )
+    print("P4100", mode_name, "plain default + explicit T PASS",
+          "slots:", len(centers), "removed_mm3:", actual_removed)
+
 legacy_detailed = profiles.build_channel(legacy, 1000.0, mode="detailed")
 assert legacy_detailed.isValid() and len(legacy_detailed.Solids) == 1
 assert profiles.geometry_provenance(legacy, "detailed")["effective_model"] == "legacy_prismatic"
