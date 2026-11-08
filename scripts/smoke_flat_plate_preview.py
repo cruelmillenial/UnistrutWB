@@ -1,6 +1,6 @@
 """FreeCAD GUI smoke test for ETL reference plates, run in Python console via runpy.
 
-runpy.run_path("/absolute/path/to/UnistrutWB/scripts/smoke_flat_plate_preview.py")
+runpy.run_path("/absolute/path/to/UnistrutWB/scripts/smoke_flat_plate_preview.py", run_name="__main__")
 """
 from __future__ import annotations
 
