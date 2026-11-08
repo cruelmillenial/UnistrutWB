@@ -128,6 +128,25 @@ def load_datastore() -> Dict[str, Any]:
                         if fid:
                             ds["fittings"][fid] = f
 
+
+        # Separately staged NON-RELEASE geometry previews; never overwrite catalog IDs.
+        preview_p = d / "fittings_preview.json"
+        if preview_p.exists():
+            preview = _load_json(preview_p)
+            if preview.get("catalog_status") != "preview_only":
+                raise ValueError("fittings_preview.json must be explicitly marked preview_only")
+            if not isinstance(preview.get("fittings"), list):
+                raise ValueError("fittings_preview.json must contain a fittings list")
+            for fitting in preview["fittings"]:
+                if not isinstance(fitting, dict) or fitting.get("record_status") != "preview_only":
+                    raise ValueError("preview fitting must be explicitly marked preview_only")
+                fid = fitting.get("id")
+                if not isinstance(fid, str) or not fid.startswith("REF_"):
+                    raise ValueError("preview fitting requires a REF_ prefixed id")
+                if fid in ds["fittings"]:
+                    raise ValueError(f"preview fitting id conflicts with real catalog: {fid}")
+                ds["fittings"][fid] = fitting
+
         # FINISHES
         if finishes_p.exists():
             raw = _load_json(finishes_p)
