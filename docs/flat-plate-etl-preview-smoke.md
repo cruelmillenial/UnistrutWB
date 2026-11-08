@@ -18,7 +18,7 @@ of any particular purchased piece.
    checkout as the FreeCAD Workbench (restart FreeCAD if already loaded).
 2. Open the FreeCAD Python console and run:
 
-   `import runpy; runpy.run_path("/absolute/path/to/UnistrutWB/scripts/smoke_flat_plate_preview.py")`
+   `import runpy; runpy.run_path("/absolute/path/to/UnistrutWB/scripts/smoke_flat_plate_preview.py", run_name="__main__")`
 
 3. Expected: three physically holed plates P1065, P1066, P1067 appear next to
    each other in an axonometric view and three `PASS` messages print. The smoke
