@@ -215,6 +215,12 @@ def add_catalog_metadata(obj, fitting):
     _add_string_prop(obj, "DisplayGroup", fitting.get("display_group", ""))
     _add_string_prop(obj, "VariantLabel", fitting.get("variant_label", ""))
     _add_string_prop(obj, "HardwarePreset", fitting.get("hardware_preset", ""))
+    _add_string_prop(obj, "RecordStatus", fitting.get("record_status", ""))
+    _add_string_prop(obj, "AccuracyClass", fitting.get("accuracy_class", ""))
+    _add_string_prop(obj, "SourceSHA256", fitting.get("source_sha256", ""))
+    _add_string_prop(obj, "ManufacturerPartId", fitting.get("manufacturer_part_id", ""))
+    if fitting.get("assumptions"):
+        _add_string_prop(obj, "ReferenceAssumptions", "; ".join(fitting["assumptions"]))
 
     _add_int_prop(obj, "HoleCount", fitting.get("hole_count"))
     _add_float_prop(obj, "HoleDiameterIn", fitting.get("default_hole_diameter_in"))
@@ -242,7 +248,7 @@ def next_unplaced_fitting_base(doc, spacing_mm=75.0):
 
 class _CmdAddFitting:
     def GetResources(self):
-        return {"MenuText": "Add Fitting", "ToolTip": "Place a fitting from datastore (placeholder geometry in v0.1)"}
+        return {"MenuText": "Add Fitting", "ToolTip": "Place a fitting, including explicitly labeled non-release reference previews"}
 
     def Activated(self):
         cat = Catalog.load(force_reload=True)
@@ -485,7 +491,7 @@ class _CmdAddFitting:
             App.Console.PrintMessage(f"[UnistrutWB] guess: {guess}\n")
             App.Console.PrintMessage(f"[UnistrutWB] chosen_slot: {slot}\n")
             obj = doc.addObject("Part::Feature", f"F_{fid}")
-            obj.Label = f"F_{fid}"
+            obj.Label = f"F_{fid} [NON-RELEASE REFERENCE]" if fitting.get("record_status") == "preview_only" else f"F_{fid}"
             obj.Shape = shp
 
             obj.addProperty("App::PropertyString", "UnistrutType", "Unistrut").UnistrutType = "fitting"

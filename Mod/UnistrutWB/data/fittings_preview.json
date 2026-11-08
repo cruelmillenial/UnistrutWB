@@ -1,0 +1,421 @@
+{
+  "catalog_status": "preview_only",
+  "fittings": [
+    {
+      "accuracy_class": "reference_inferred",
+      "assumptions": [
+        "transverse centers inferred from undimensioned centerline illustration",
+        "sharp rectangular corners approximated; manufacturer corner radius unknown",
+        "steel grade is a selectable catalog condition, not confirmed for a specific shipped SKU"
+      ],
+      "category": "splice_plates",
+      "default_hole_diameter_in": 0.5625,
+      "display_group": "Reference Plates (Provisional)",
+      "family_id": "flat_splice_plate",
+      "geometry": {
+        "family": "flat_splice_plate",
+        "holes": [
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 20.6375,
+            "y_mm": 20.6375
+          },
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 68.2625,
+            "y_mm": 20.6375
+          }
+        ],
+        "length_mm": 88.9,
+        "thickness_mm": 5.588,
+        "width_mm": 41.275
+      },
+      "geometry_type": "splice_plate",
+      "hole_count": 2,
+      "hole_diameter_options_in": [
+        0.5625
+      ],
+      "id": "REF_P1065_HSLAS45",
+      "manufacturer_part_id": "P1065",
+      "mate_frames": [],
+      "material_requirement": "meeting or exceeding ASTM A1011 HSLAS GR 45",
+      "name": "P1065 flat plate — unverified reference (HSLAS45)",
+      "placement": {
+        "allowed_face_classes": [
+          "open_face"
+        ],
+        "slot_policy": "nearest_slot_center",
+        "supported_modes": [
+          "face_mount"
+        ]
+      },
+      "provenance": {
+        "corner_radius": "unresolved",
+        "length_and_hole_count": "manufacturer_part_drawing",
+        "longitudinal_centers": "derived_exact_from_family_pitch_and_offset",
+        "thickness": "manufacturer_family_note_conditional_on_material",
+        "transverse_centers": "inferred_from_undimensioned_illustration",
+        "width_hole_diameter_pitch_end_offset": "manufacturer_family_note"
+      },
+      "record_status": "preview_only",
+      "source_page": 81,
+      "source_sha256": "afd2d2d6c9bbf7825848ce137f0a283d553f40431658ae551494f9ed21a84945",
+      "variant_label": "P1065 / 0.220 in / HSLAS45 [REFERENCE]"
+    },
+    {
+      "accuracy_class": "reference_inferred",
+      "assumptions": [
+        "transverse centers inferred from undimensioned centerline illustration",
+        "sharp rectangular corners approximated; manufacturer corner radius unknown",
+        "steel grade is a selectable catalog condition, not confirmed for a specific shipped SKU"
+      ],
+      "category": "splice_plates",
+      "default_hole_diameter_in": 0.5625,
+      "display_group": "Reference Plates (Provisional)",
+      "family_id": "flat_splice_plate",
+      "geometry": {
+        "family": "flat_splice_plate",
+        "holes": [
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 20.6375,
+            "y_mm": 20.6375
+          },
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 68.2625,
+            "y_mm": 20.6375
+          }
+        ],
+        "length_mm": 88.9,
+        "thickness_mm": 6.35,
+        "width_mm": 41.275
+      },
+      "geometry_type": "splice_plate",
+      "hole_count": 2,
+      "hole_diameter_options_in": [
+        0.5625
+      ],
+      "id": "REF_P1065_SS33",
+      "manufacturer_part_id": "P1065",
+      "mate_frames": [],
+      "material_requirement": "meeting or exceeding ASTM A1011 SS GR 33",
+      "name": "P1065 flat plate — unverified reference (SS33)",
+      "placement": {
+        "allowed_face_classes": [
+          "open_face"
+        ],
+        "slot_policy": "nearest_slot_center",
+        "supported_modes": [
+          "face_mount"
+        ]
+      },
+      "provenance": {
+        "corner_radius": "unresolved",
+        "length_and_hole_count": "manufacturer_part_drawing",
+        "longitudinal_centers": "derived_exact_from_family_pitch_and_offset",
+        "thickness": "manufacturer_family_note_conditional_on_material",
+        "transverse_centers": "inferred_from_undimensioned_illustration",
+        "width_hole_diameter_pitch_end_offset": "manufacturer_family_note"
+      },
+      "record_status": "preview_only",
+      "source_page": 81,
+      "source_sha256": "afd2d2d6c9bbf7825848ce137f0a283d553f40431658ae551494f9ed21a84945",
+      "variant_label": "P1065 / 1/4 in / SS33 [REFERENCE]"
+    },
+    {
+      "accuracy_class": "reference_inferred",
+      "assumptions": [
+        "transverse centers inferred from undimensioned centerline illustration",
+        "sharp rectangular corners approximated; manufacturer corner radius unknown",
+        "steel grade is a selectable catalog condition, not confirmed for a specific shipped SKU"
+      ],
+      "category": "splice_plates",
+      "default_hole_diameter_in": 0.5625,
+      "display_group": "Reference Plates (Provisional)",
+      "family_id": "flat_splice_plate",
+      "geometry": {
+        "family": "flat_splice_plate",
+        "holes": [
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 20.6375,
+            "y_mm": 20.6375
+          },
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 68.2625,
+            "y_mm": 20.6375
+          },
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 115.8875,
+            "y_mm": 20.6375
+          }
+        ],
+        "length_mm": 136.525,
+        "thickness_mm": 5.588,
+        "width_mm": 41.275
+      },
+      "geometry_type": "splice_plate",
+      "hole_count": 3,
+      "hole_diameter_options_in": [
+        0.5625
+      ],
+      "id": "REF_P1066_HSLAS45",
+      "manufacturer_part_id": "P1066",
+      "mate_frames": [],
+      "material_requirement": "meeting or exceeding ASTM A1011 HSLAS GR 45",
+      "name": "P1066 flat plate — unverified reference (HSLAS45)",
+      "placement": {
+        "allowed_face_classes": [
+          "open_face"
+        ],
+        "slot_policy": "nearest_slot_center",
+        "supported_modes": [
+          "face_mount"
+        ]
+      },
+      "provenance": {
+        "corner_radius": "unresolved",
+        "length_and_hole_count": "manufacturer_part_drawing",
+        "longitudinal_centers": "derived_exact_from_family_pitch_and_offset",
+        "thickness": "manufacturer_family_note_conditional_on_material",
+        "transverse_centers": "inferred_from_undimensioned_illustration",
+        "width_hole_diameter_pitch_end_offset": "manufacturer_family_note"
+      },
+      "record_status": "preview_only",
+      "source_page": 81,
+      "source_sha256": "afd2d2d6c9bbf7825848ce137f0a283d553f40431658ae551494f9ed21a84945",
+      "variant_label": "P1066 / 0.220 in / HSLAS45 [REFERENCE]"
+    },
+    {
+      "accuracy_class": "reference_inferred",
+      "assumptions": [
+        "transverse centers inferred from undimensioned centerline illustration",
+        "sharp rectangular corners approximated; manufacturer corner radius unknown",
+        "steel grade is a selectable catalog condition, not confirmed for a specific shipped SKU"
+      ],
+      "category": "splice_plates",
+      "default_hole_diameter_in": 0.5625,
+      "display_group": "Reference Plates (Provisional)",
+      "family_id": "flat_splice_plate",
+      "geometry": {
+        "family": "flat_splice_plate",
+        "holes": [
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 20.6375,
+            "y_mm": 20.6375
+          },
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 68.2625,
+            "y_mm": 20.6375
+          },
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 115.8875,
+            "y_mm": 20.6375
+          }
+        ],
+        "length_mm": 136.525,
+        "thickness_mm": 6.35,
+        "width_mm": 41.275
+      },
+      "geometry_type": "splice_plate",
+      "hole_count": 3,
+      "hole_diameter_options_in": [
+        0.5625
+      ],
+      "id": "REF_P1066_SS33",
+      "manufacturer_part_id": "P1066",
+      "mate_frames": [],
+      "material_requirement": "meeting or exceeding ASTM A1011 SS GR 33",
+      "name": "P1066 flat plate — unverified reference (SS33)",
+      "placement": {
+        "allowed_face_classes": [
+          "open_face"
+        ],
+        "slot_policy": "nearest_slot_center",
+        "supported_modes": [
+          "face_mount"
+        ]
+      },
+      "provenance": {
+        "corner_radius": "unresolved",
+        "length_and_hole_count": "manufacturer_part_drawing",
+        "longitudinal_centers": "derived_exact_from_family_pitch_and_offset",
+        "thickness": "manufacturer_family_note_conditional_on_material",
+        "transverse_centers": "inferred_from_undimensioned_illustration",
+        "width_hole_diameter_pitch_end_offset": "manufacturer_family_note"
+      },
+      "record_status": "preview_only",
+      "source_page": 81,
+      "source_sha256": "afd2d2d6c9bbf7825848ce137f0a283d553f40431658ae551494f9ed21a84945",
+      "variant_label": "P1066 / 1/4 in / SS33 [REFERENCE]"
+    },
+    {
+      "accuracy_class": "reference_inferred",
+      "assumptions": [
+        "transverse centers inferred from undimensioned centerline illustration",
+        "sharp rectangular corners approximated; manufacturer corner radius unknown",
+        "steel grade is a selectable catalog condition, not confirmed for a specific shipped SKU"
+      ],
+      "category": "splice_plates",
+      "default_hole_diameter_in": 0.5625,
+      "display_group": "Reference Plates (Provisional)",
+      "family_id": "flat_splice_plate",
+      "geometry": {
+        "family": "flat_splice_plate",
+        "holes": [
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 20.6375,
+            "y_mm": 20.6375
+          },
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 68.2625,
+            "y_mm": 20.6375
+          },
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 115.8875,
+            "y_mm": 20.6375
+          },
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 163.5125,
+            "y_mm": 20.6375
+          }
+        ],
+        "length_mm": 184.15,
+        "thickness_mm": 5.588,
+        "width_mm": 41.275
+      },
+      "geometry_type": "splice_plate",
+      "hole_count": 4,
+      "hole_diameter_options_in": [
+        0.5625
+      ],
+      "id": "REF_P1067_HSLAS45",
+      "manufacturer_part_id": "P1067",
+      "mate_frames": [],
+      "material_requirement": "meeting or exceeding ASTM A1011 HSLAS GR 45",
+      "name": "P1067 flat plate — unverified reference (HSLAS45)",
+      "placement": {
+        "allowed_face_classes": [
+          "open_face"
+        ],
+        "slot_policy": "nearest_slot_center",
+        "supported_modes": [
+          "face_mount"
+        ]
+      },
+      "provenance": {
+        "corner_radius": "unresolved",
+        "length_and_hole_count": "manufacturer_part_drawing",
+        "longitudinal_centers": "derived_exact_from_family_pitch_and_offset",
+        "thickness": "manufacturer_family_note_conditional_on_material",
+        "transverse_centers": "inferred_from_undimensioned_illustration",
+        "width_hole_diameter_pitch_end_offset": "manufacturer_family_note"
+      },
+      "record_status": "preview_only",
+      "source_page": 81,
+      "source_sha256": "afd2d2d6c9bbf7825848ce137f0a283d553f40431658ae551494f9ed21a84945",
+      "variant_label": "P1067 / 0.220 in / HSLAS45 [REFERENCE]"
+    },
+    {
+      "accuracy_class": "reference_inferred",
+      "assumptions": [
+        "transverse centers inferred from undimensioned centerline illustration",
+        "sharp rectangular corners approximated; manufacturer corner radius unknown",
+        "steel grade is a selectable catalog condition, not confirmed for a specific shipped SKU"
+      ],
+      "category": "splice_plates",
+      "default_hole_diameter_in": 0.5625,
+      "display_group": "Reference Plates (Provisional)",
+      "family_id": "flat_splice_plate",
+      "geometry": {
+        "family": "flat_splice_plate",
+        "holes": [
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 20.6375,
+            "y_mm": 20.6375
+          },
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 68.2625,
+            "y_mm": 20.6375
+          },
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 115.8875,
+            "y_mm": 20.6375
+          },
+          {
+            "diameter_mm": 14.2875,
+            "shape": "round",
+            "x_mm": 163.5125,
+            "y_mm": 20.6375
+          }
+        ],
+        "length_mm": 184.15,
+        "thickness_mm": 6.35,
+        "width_mm": 41.275
+      },
+      "geometry_type": "splice_plate",
+      "hole_count": 4,
+      "hole_diameter_options_in": [
+        0.5625
+      ],
+      "id": "REF_P1067_SS33",
+      "manufacturer_part_id": "P1067",
+      "mate_frames": [],
+      "material_requirement": "meeting or exceeding ASTM A1011 SS GR 33",
+      "name": "P1067 flat plate — unverified reference (SS33)",
+      "placement": {
+        "allowed_face_classes": [
+          "open_face"
+        ],
+        "slot_policy": "nearest_slot_center",
+        "supported_modes": [
+          "face_mount"
+        ]
+      },
+      "provenance": {
+        "corner_radius": "unresolved",
+        "length_and_hole_count": "manufacturer_part_drawing",
+        "longitudinal_centers": "derived_exact_from_family_pitch_and_offset",
+        "thickness": "manufacturer_family_note_conditional_on_material",
+        "transverse_centers": "inferred_from_undimensioned_illustration",
+        "width_hole_diameter_pitch_end_offset": "manufacturer_family_note"
+      },
+      "record_status": "preview_only",
+      "source_page": 81,
+      "source_sha256": "afd2d2d6c9bbf7825848ce137f0a283d553f40431658ae551494f9ed21a84945",
+      "variant_label": "P1067 / 1/4 in / SS33 [REFERENCE]"
+    }
+  ],
+  "schema_version": 1,
+  "source_id": "unistrut-flat-plates-catalog-page-81"
+}
